@@ -197,3 +197,20 @@ For questions or suggestions, contact:
 - Tech Lead: [Name](mailto:email@example.com)
 - Project Manager: [Name](mailto:email@example.com)
 
+## Available Satellites
+
+![Satellite Constellation](./docs/assets/satellites.png)
+
+## Satellite Data Sources
+
+The project can work with imagery from the following satellites:
+
+| Satellite | Resolution | Revisit Time | Bands | Best Use Case |
+|-----------|------------|--------------|--------|---------------|
+| Sentinel-2 | 10m, 20m, 60m | 5 days | 13 bands | Land use, agriculture, forest monitoring |
+| Landsat 8-9 | 15m, 30m, 100m | 16 days | 11 bands | Historical analysis, long-term changes |
+| MODIS | 250m, 500m, 1km | Daily | 36 bands | Large-scale monitoring, rapid changes |
+| Planet | 3-5m | Daily | 4 bands | High-resolution monitoring (commercial) |
+
+Note: Actual satellite data availability may depend on the region of interest, cloud coverage, and licensing agreements.
+

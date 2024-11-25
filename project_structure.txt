@@ -1,0 +1,58 @@
+change_detection_project/
+├── README.md
+├── .gitignore
+├── preprocessing_service/
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── src/
+│   │   ├── utils/
+│   │   └── processors/
+│   ├── tests/
+│   └── data/
+│       ├── raw/
+│       └── processed/
+├── model_service/
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   ├── src/
+│   │   ├── utils/
+│   │   └── inference/
+│   ├── tests/
+│   └── models/
+│       └── pretrained/
+├── api_gateway/
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── src/
+│       ├── routes/
+│       ├── middleware/
+│       └── utils/
+├── queue_service/
+│   ├── README.md
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── src/
+│       ├── workers/
+│       └── utils/
+├── frontend/
+│   ├── README.md
+│   ├── package.json
+│   ├── Dockerfile
+│   ├── public/
+│   └── src/
+│       ├── components/
+│       │   ├── common/
+│       │   ├── maps/
+│       │   └── analysis/
+│       ├── pages/
+│       ├── utils/
+│       └── services/
+└── common/
+    ├── README.md
+    ├── requirements.txt
+    └── src/
+        ├── utils/
+        └── types/ 

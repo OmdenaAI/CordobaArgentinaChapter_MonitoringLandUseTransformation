@@ -1,0 +1,85 @@
+name: "Land Use Change Detection Project"
+
+description: |
+  Land use change detection and monitoring system in Córdoba, Argentina, 
+  using satellite imagery. The project uses pre-trained models and ensemble 
+  learning techniques to analyze images at two time points (t1 and t2).
+
+services:
+  - name: "preprocessing_service"
+    path: "preprocessing_service/**"
+    description: "Satellite image preprocessing service"
+    tags: ["python", "gdal", "rasterio", "numpy"]
+
+  - name: "model_service"
+    path: "model_service/**"
+    description: "Pre-trained model inference service"
+    tags: ["python", "pytorch", "tensorflow", "scikit-learn"]
+
+  - name: "api_gateway"
+    path: "api_gateway/**"
+    description: "API Gateway implemented with FastAPI"
+    tags: ["python", "fastapi", "pydantic"]
+
+  - name: "queue_service"
+    path: "queue_service/**"
+    description: "Queue service using Redis and Celery"
+    tags: ["python", "redis", "celery"]
+
+  - name: "frontend"
+    path: "frontend/**"
+    description: "User interface implemented in React"
+    tags: ["typescript", "react", "leaflet", "mapbox"]
+
+  - name: "common"
+    path: "common/**"
+    description: "Shared code between services"
+    tags: ["python", "typescript"]
+
+conventions:
+  python:
+    - "Follow PEP 8"
+    - "Google style docstrings"
+    - "Mandatory type hints"
+  
+  typescript:
+    - "ESLint Airbnb config"
+    - "Prettier for formatting"
+    - "TypeScript strict mode"
+
+  git:
+    - "Conventional Commits"
+    - "Feature branches from develop"
+    - "Mandatory pull requests"
+
+key_concepts:
+  - name: "Change Detection"
+    description: "Detection of changes between two satellite images at different times"
+
+  - name: "Pre-trained Models"
+    description: "Use of pre-trained models to avoid manual data labeling"
+
+  - name: "Queue System"
+    description: "Redis queue system to handle multiple processing requests"
+
+  - name: "Ensemble Learning"
+    description: "Combination of multiple models to optimize results"
+
+dependencies:
+  python: "^3.11"
+  node: "^18.0.0"
+  redis: "^7.0.0"
+  docker: "^24.0.0"
+  docker_compose: "^2.0.0"
+
+team_roles:
+  - "Pre-Trained Models and Experimentation Team"
+  - "Processing and Optimization Team"
+  - "Data Preprocessing and Analysis Team"
+  - "Front-End and Visualization Team"
+
+documentation:
+  architecture: "docs/architecture.md"
+  api: "api-gateway/README.md"
+  deployment: "docs/deployment.md"
+  development: "docs/development.md"

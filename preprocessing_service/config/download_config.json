@@ -1,0 +1,18 @@
+{
+    "credentials_path": "path/to/gee-credentials.json",
+    "region": {
+        "type": "Polygon",
+        "coordinates": [[
+            [-64.5, -31.5],
+            [-64.5, -31.2],
+            [-64.2, -31.2],
+            [-64.2, -31.5],
+            [-64.5, -31.5]
+        ]]
+    },
+    "t1_start": "2022-01-01",
+    "t1_end": "2022-02-01",
+    "t2_start": "2023-01-01", 
+    "t2_end": "2023-02-01",
+    "cloud_threshold": 20.0
+} 

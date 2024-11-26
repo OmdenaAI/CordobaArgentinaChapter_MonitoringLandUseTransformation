@@ -199,7 +199,7 @@ For questions or suggestions, contact:
 
 ## Available Satellites
 
-![Satellite Constellation](./docs/assets/satellites.jpeg)
+![Satellite Constellation](./docs/assets/satellites.png)
 
 ## Satellite Data Sources
 

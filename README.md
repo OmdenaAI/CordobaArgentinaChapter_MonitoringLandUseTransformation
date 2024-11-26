@@ -11,19 +11,19 @@ Land use change detection and monitoring system in Córdoba, Argentina, using sa
 
 ### Development Environment Setup
 
-1. Clone the repository:
+### 1. Clone the repository:
 ```bash
 git clone https://github.com/OmdenaAI/CordobaArgentinaChapter_MonitoringLandUseTransformation.git
 ```
 
-2. Navigate to project directory:
+### 2. Navigate to project directory:
 ```bash
 cd CordobaArgentinaChapter_MonitoringLandUseTransformation
 ```
 
-3. Set up Python virtual environments:
+### 3. Set up Python virtual environments:
 
-Preprocessing Service:
+#### Preprocessing Service:
 ```bash
 python -m venv preprocessing-service/venv
 source preprocessing-service/venv/bin/activate # Linux/Mac
@@ -36,7 +36,7 @@ Install dependencies (if they exist):
 pip install -r preprocessing-service/requirements.txt
 ```
 
-Model Service:
+#### Model Service:
 ```bash
 python -m venv model-service/venv
 source model-service/venv/bin/activate # Linux/Mac
@@ -49,7 +49,7 @@ Install dependencies (if they exist):
 pip install -r model-service/requirements.txt
 ```
 
-API Gateway:
+#### API Gateway:
 ```bash
 python -m venv api-gateway/venv
 source api-gateway/venv/bin/activate # Linux/Mac
@@ -62,7 +62,7 @@ Install dependencies (if they exist):
 pip install -r api-gateway/requirements.txt
 ```
 
-Queue Service:
+#### Queue Service:
 ```bash
 python -m venv queue-service/venv
 source queue-service/venv/bin/activate # Linux/Mac
@@ -75,13 +75,13 @@ Install dependencies (if they exist):
 pip install -r queue-service/requirements.txt
 ```
 
-4. Set up Frontend:
+#### Set up Frontend:
 ```bash
 cd frontend
 npm install
 ```
 
-5. Configure Redis:
+#### Configure Redis:
 ```bash
 docker run -d --name redis-stack-server -p 6379:6379 redis/redis-stack-server:latest
 ```
@@ -102,35 +102,35 @@ change_detection_project/
 
 ### Running Services Individually
 
-1. Preprocessing Service:
+#### 1. Preprocessing Service:
 ```bash
 cd preprocessing-service
 source venv/bin/activate
 python src/main.py
 ```
 
-2. Model Service:
+#### 2. Model Service:
 ```bash
 cd model-service
 source venv/bin/activate
 python src/main.py
 ```
 
-3. API Gateway:
+#### 3. API Gateway:
 ```bash
 cd api-gateway
 source venv/bin/activate
 uvicorn src.main:app --reload
 ```
 
-4. Queue Service:
+#### 4. Queue Service:
 ```bash
 cd queue-service
 source venv/bin/activate
 celery -A src.workers worker --loglevel=info
 ```
 
-5. Frontend:
+#### 5. Frontend:
 ```bash
 cd frontend
 npm run dev
@@ -192,6 +192,3 @@ The project can work with imagery from the following satellites:
 | Landsat 8-9 | 15m, 30m, 100m | 16 days | 11 bands | Historical analysis, long-term changes |
 | MODIS | 250m, 500m, 1km | Daily | 36 bands | Large-scale monitoring, rapid changes |
 | Planet | 3-5m | Daily | 4 bands | High-resolution monitoring (commercial) |
-
-Note: Actual satellite data availability may depend on the region of interest, cloud coverage, and licensing agreements.
-

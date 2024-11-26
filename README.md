@@ -8,19 +8,17 @@ Land use change detection and monitoring system in Córdoba, Argentina, using sa
 - Python 3.11
 - Node.js 18
 - Redis 7.0
-- Docker 24.0
-- Docker Compose v2.0
 
 ### Development Environment Setup
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/change-detection-project.git
+git clone https://github.com/OmdenaAI/CordobaArgentinaChapter_MonitoringLandUseTransformation.git
 ```
 
 2. Navigate to project directory:
 ```bash
-cd change-detection-project
+cd CordobaArgentinaChapter_MonitoringLandUseTransformation
 ```
 
 3. Set up Python virtual environments:
@@ -28,17 +26,11 @@ cd change-detection-project
 Preprocessing Service:
 ```bash
 python -m venv preprocessing-service/venv
-```
-
-```bash
 source preprocessing-service/venv/bin/activate # Linux/Mac
-```
-
-```bash
 .\preprocessing-service\venv\Scripts\activate # Windows
 ```
 
-Instalar dependencias:
+Install dependencies (if they exist):
 
 ```bash
 pip install -r preprocessing-service/requirements.txt
@@ -47,11 +39,11 @@ pip install -r preprocessing-service/requirements.txt
 Model Service:
 ```bash
 python -m venv model-service/venv
+source model-service/venv/bin/activate # Linux/Mac
+.\model-service\venv\Scripts\activate # Windows
 ```
 
-```bash
-source model-service/venv/bin/activate # Linux/Mac
-```
+Install dependencies (if they exist):
 
 ```bash
 pip install -r model-service/requirements.txt
@@ -60,11 +52,11 @@ pip install -r model-service/requirements.txt
 API Gateway:
 ```bash
 python -m venv api-gateway/venv
+source api-gateway/venv/bin/activate # Linux/Mac
+.\api-gateway\venv\Scripts\activate # Windows
 ```
 
-```bash
-source api-gateway/venv/bin/activate
-```
+Install dependencies (if they exist):
 
 ```bash
 pip install -r api-gateway/requirements.txt
@@ -73,10 +65,12 @@ pip install -r api-gateway/requirements.txt
 Queue Service:
 ```bash
 python -m venv queue-service/venv
+source queue-service/venv/bin/activate # Linux/Mac
+.\queue-service\venv\Scripts\activate # Windows
 ```
-```bash
-source queue-service/venv/bin/activate
-```
+
+Install dependencies (if they exist):
+
 ```bash
 pip install -r queue-service/requirements.txt
 ```
@@ -154,19 +148,6 @@ docker-compose up -d
 - ESLint with Airbnb config for JavaScript/TypeScript
 - Conventional Commits for commit messages
 - Google Style Python Docstrings for documentation
-
-## Testing
-
-Run tests for a specific service:
-```bash
-cd [service-name]
-pytest
-```
-
-Run all tests:
-```bash
-./scripts/run_all_tests.sh
-```
 
 ## Git Workflow
 

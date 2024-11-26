@@ -45,7 +45,6 @@ data/processed/
 *.TIF
 *.jpg
 *.jpeg
-*.png
 *.hdf
 *.nc
 

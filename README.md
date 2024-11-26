@@ -5,7 +5,7 @@ Land use change detection and monitoring system in Córdoba, Argentina, using sa
 ## System Requirements
 
 ### Software Versions
-- Python 3.11
+- Python 3.11.8
 - Node.js 18
 - Redis 7.0
 
@@ -21,58 +21,87 @@ git clone https://github.com/OmdenaAI/CordobaArgentinaChapter_MonitoringLandUseT
 cd CordobaArgentinaChapter_MonitoringLandUseTransformation
 ```
 
-### 3. Set up Python virtual environments:
+### 3. Install Python 3.11.8:
+
+#### For MacOS (using pyenv):
+```bash
+# Install pyenv if you haven't already
+brew install pyenv
+
+# Install Python 3.11.8
+pyenv install 3.11.8
+
+# Set Python 3.11.8 as local version for this project
+pyenv local 3.11.8
+
+# Verify installation
+python --version  # Should show Python 3.11.8
+```
+
+#### For Windows:
+```powershell
+# Using winget (Windows Package Manager)
+winget install Python.Python.3.11
+
+# Or download the installer from official website
+# https://www.python.org/downloads/release/python-3117/
+
+# Verify installation
+python --version  # Should show Python 3.11.8
+```
+
+### 4. Set up Python virtual environments:
 
 #### Preprocessing Service:
 ```bash
-python -m venv preprocessing-service/venv
-source preprocessing-service/venv/bin/activate # Linux/Mac
-.\preprocessing-service\venv\Scripts\activate # Windows
+python -m venv preprocessing_service/venv
+source preprocessing_service/venv/bin/activate # Linux/Mac
+.\preprocessing_service\venv\Scripts\activate # Windows
 ```
 
 Install dependencies (if they exist):
 
 ```bash
-pip install -r preprocessing-service/requirements.txt
+pip install -r preprocessing_service/requirements.txt
 ```
 
 #### Model Service:
 ```bash
 python -m venv model-service/venv
-source model-service/venv/bin/activate # Linux/Mac
-.\model-service\venv\Scripts\activate # Windows
+source model_service/venv/bin/activate # Linux/Mac
+.\model_service\venv\Scripts\activate # Windows
 ```
 
 Install dependencies (if they exist):
 
 ```bash
-pip install -r model-service/requirements.txt
+pip install -r model_service/requirements.txt
 ```
 
 #### API Gateway:
 ```bash
 python -m venv api-gateway/venv
-source api-gateway/venv/bin/activate # Linux/Mac
-.\api-gateway\venv\Scripts\activate # Windows
+source api_gateway/venv/bin/activate # Linux/Mac
+.\api_gateway\venv\Scripts\activate # Windows
 ```
 
 Install dependencies (if they exist):
 
 ```bash
-pip install -r api-gateway/requirements.txt
+pip install -r api_gateway/requirements.txt
 ```
 
 #### Queue Service:
 ```bash
 python -m venv queue-service/venv
-source queue-service/venv/bin/activate # Linux/Mac
-.\queue-service\venv\Scripts\activate # Windows
+source queue_service/venv/bin/activate # Linux/Mac
+.\queue_service\venv\Scripts\activate # Windows
 ```
 
 Install dependencies (if they exist):
 
 ```bash
-pip install -r queue-service/requirements.txt
+pip install -r queue_service/requirements.txt
 ```
 
 #### Set up Frontend:
@@ -104,28 +133,28 @@ change_detection_project/
 
 #### 1. Preprocessing Service:
 ```bash
-cd preprocessing-service
+cd preprocessing_service
 source venv/bin/activate
 python src/main.py
 ```
 
 #### 2. Model Service:
 ```bash
-cd model-service
+cd model_service
 source venv/bin/activate
 python src/main.py
 ```
 
 #### 3. API Gateway:
 ```bash
-cd api-gateway
+cd api_gateway
 source venv/bin/activate
 uvicorn src.main:app --reload
 ```
 
 #### 4. Queue Service:
 ```bash
-cd queue-service
+cd queue_service
 source venv/bin/activate
 celery -A src.workers worker --loglevel=info
 ```
@@ -155,14 +184,14 @@ docker-compose up -d
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b feature/feature-name
+git checkout -b feature/feature_name
 ```
 
 2. Commit changes:
 ```bash
 git add .
 git commit -m "feat: description of change"
-git push origin feature/feature-name
+git push origin feature/feature_name
 ```
 Create PR in GitHub from feature -> develop
 

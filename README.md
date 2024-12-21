@@ -34,6 +34,11 @@ pyenv install 3.11.8
 # Set Python 3.11.8 as local version for this project
 pyenv local 3.11.8
 
+# Reload shell configuration
+source ~/.zshrc    # If using zsh
+# OR
+source ~/.bashrc   # If using bash
+
 # Verify installation
 python --version  # Should show Python 3.11.8
 ```
@@ -45,6 +50,10 @@ winget install Python.Python.3.11
 
 # Or download the installer from official website
 # https://www.python.org/downloads/release/python-3117/
+
+# Refresh environment variables (open a new terminal)
+# OR run this command in PowerShell:
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
 # Verify installation
 python --version  # Should show Python 3.11.8

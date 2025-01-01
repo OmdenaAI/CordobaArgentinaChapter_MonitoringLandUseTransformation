@@ -101,7 +101,7 @@ def analyze_site(
     # Get path to CSV
     current_dir = Path().absolute()
     csv_path = (current_dir.parent.parent /  # Only go up two levels to reach root
-                'data' / 'cordoba_por_anio' / f'cordoba_{csv_year}_filtered.csv')
+                'data' / 'cordoba_por_anio_filtered' / f'cordoba_{csv_year}_filtered.csv')
 
     if not csv_path.exists():
         raise FileNotFoundError(f"File not found at: {csv_path}")

@@ -116,22 +116,58 @@ def filter_deforestation_data(
     else:
         print("No records met the tree coverage threshold criteria")
 
+def process_multiple_years(
+    start_year: int,
+    end_year: int,
+    input_dir: str,
+    output_dir: str,
+    tree_threshold: float = 0.5
+) -> None:
+    """
+    Process deforestation data for multiple years.
+    
+    Args:
+        start_year (int): First year to process
+        end_year (int): Last year to process
+        input_dir (str): Directory containing input CSV files
+        output_dir (str): Directory to save filtered CSV files
+        tree_threshold (float): Minimum tree probability threshold
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for year in range(start_year, end_year + 1):
+        input_csv = os.path.join(input_dir, f'cordoba_{year}.csv')
+        output_csv = os.path.join(output_dir, f'cordoba_{year}_filtered.csv')
+        
+        if os.path.exists(input_csv):
+            print(f"\nProcessing year {year}...")
+            filter_deforestation_data(
+                input_csv=input_csv,
+                output_csv=output_csv,
+                year=year,
+                tree_threshold=tree_threshold
+            )
+        else:
+            print(f"\nSkipping year {year} - file not found: {input_csv}")
+
 if __name__ == "__main__":
     # Get the absolute path to the project root
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     # Initialize Earth Engine
     GEE_CREDENTIALS_PATH = os.path.join(PROJECT_ROOT, 'data', 'climatech-426614-3aa74ba1de08.json')
-    
     initialize_gee(GEE_CREDENTIALS_PATH)
     
-    # Process deforestation data
-    input_csv = os.path.join(PROJECT_ROOT, 'data', 'cordoba_por_anio', 'cordoba_2023.csv')
-    output_csv = os.path.join(PROJECT_ROOT, 'data', 'cordoba_por_anio', 'cordoba_2023_filtered.csv')
+    # Define directories
+    input_dir = os.path.join(PROJECT_ROOT, 'data', 'cordoba_por_anio')
+    output_dir = os.path.join(PROJECT_ROOT, 'data', 'cordoba_por_anio_filtered')
     
-    filter_deforestation_data(
-        input_csv=input_csv,
-        output_csv=output_csv,
-        year=2023,
-        tree_threshold=0.5  # Minimum 50% tree coverage in previous year
+    # Process all years from 2010 to 2023
+    process_multiple_years(
+        start_year=2010,
+        end_year=2023,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        tree_threshold=0.5
     )

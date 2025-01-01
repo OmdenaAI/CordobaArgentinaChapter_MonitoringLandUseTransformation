@@ -6,8 +6,6 @@ Land use change detection and monitoring system in Córdoba, Argentina, using sa
 
 ### Software Versions
 - Python 3.11.8
-- Node.js 18
-- Redis 7.0
 
 ### Development Environment Setup
 
@@ -44,84 +42,22 @@ python --version  # Should show Python 3.11.8
 ```
 
 #### For Windows:
-```powershell
-# Using winget (Windows Package Manager)
-winget install Python.Python.3.11
+Download and install Python 3.11.8 from the official website:
+https://www.python.org/downloads/release/python-3118/
 
-# Or download the installer from official website
-# https://www.python.org/downloads/release/python-3117/
-
-# Refresh environment variables (open a new terminal)
-# OR run this command in PowerShell:
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-# Verify installation
-python --version  # Should show Python 3.11.8
-```
-
-### 4. Set up Python virtual environments:
-
-#### Preprocessing Service:
-```bash
-python -m venv preprocessing_service/venv
-source preprocessing_service/venv/bin/activate # Linux/Mac
-.\preprocessing_service\venv\Scripts\activate # Windows
-```
-
-Install dependencies (if they exist):
+### 4. Set up Python virtual environment:
 
 ```bash
-pip install -r preprocessing_service/requirements.txt
-```
+# Create virtual environment
+python -m venv venv
 
-#### Model Service:
-```bash
-python -m venv model-service/venv
-source model_service/venv/bin/activate # Linux/Mac
-.\model_service\venv\Scripts\activate # Windows
-```
+# Activate virtual environment
+source venv/bin/activate  # Linux/Mac
+# OR
+.\venv\Scripts\activate  # Windows
 
-Install dependencies (if they exist):
-
-```bash
-pip install -r model_service/requirements.txt
-```
-
-#### API Gateway:
-```bash
-python -m venv api-gateway/venv
-source api_gateway/venv/bin/activate # Linux/Mac
-.\api_gateway\venv\Scripts\activate # Windows
-```
-
-Install dependencies (if they exist):
-
-```bash
-pip install -r api_gateway/requirements.txt
-```
-
-#### Queue Service:
-```bash
-python -m venv queue-service/venv
-source queue_service/venv/bin/activate # Linux/Mac
-.\queue_service\venv\Scripts\activate # Windows
-```
-
-Install dependencies (if they exist):
-
-```bash
-pip install -r queue_service/requirements.txt
-```
-
-#### Set up Frontend:
-```bash
-cd frontend
-npm install
-```
-
-#### Configure Redis:
-```bash
-docker run -d --name redis-stack-server -p 6379:6379 redis/redis-stack-server:latest
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 ## Project Structure
@@ -135,57 +71,6 @@ change_detection_project/
 ├── frontend/            # Frontend (React)
 └── common/              # Shared code between services
 ```
-
-## Local Development
-
-### Running Services Individually
-
-#### 1. Preprocessing Service:
-```bash
-cd preprocessing_service
-source venv/bin/activate
-python src/main.py
-```
-
-#### 2. Model Service:
-```bash
-cd model_service
-source venv/bin/activate
-python src/main.py
-```
-
-#### 3. API Gateway:
-```bash
-cd api_gateway
-source venv/bin/activate
-uvicorn src.main:app --reload
-```
-
-#### 4. Queue Service:
-```bash
-cd queue_service
-source venv/bin/activate
-celery -A src.workers worker --loglevel=info
-```
-
-#### 5. Frontend:
-```bash
-cd frontend
-npm run dev
-```
-
-### Using Docker Compose
-
-```bash
-docker-compose up -d
-```
-
-## Code Conventions
-
-- Follow PEP 8 for Python
-- ESLint with Airbnb config for JavaScript/TypeScript
-- Conventional Commits for commit messages
-- Google Style Python Docstrings for documentation
 
 ## Git Workflow
 

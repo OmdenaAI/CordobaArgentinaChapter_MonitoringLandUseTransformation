@@ -115,3 +115,9 @@ The project can work with imagery from the following satellites:
 | Landsat 8-9 | 15m, 30m, 100m | 16 days | 11 bands | Historical analysis, long-term changes |
 | MODIS | 250m, 500m, 1km | Daily | 36 bands | Large-scale monitoring, rapid changes |
 | Planet | 3-5m | Daily | 4 bands | High-resolution monitoring (commercial) |
+
+## System Architecture
+
+Initial proposal for the system architecture:
+
+![System Architecture](./docs/assets/arq.png)

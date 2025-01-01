@@ -39,7 +39,6 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
 
 # Satellite Data
 data/raw/

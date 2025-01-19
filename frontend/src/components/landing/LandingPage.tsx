@@ -1,10 +1,12 @@
-import React from 'react'
+// import React, { useState } from 'react';
 import { Link } from 'react-router-dom'
 import { Satellite, Map, BarChart2, Upload, Shield, Zap } from 'lucide-react'
+// import { useShowLogin } from '../../utils/navigation_utils';
 
 const WHATSAPP_NUMBER = '+5493513273358';
 
 export function LandingPage() {
+  
   return (
     <div className="min-h-screen">
       {/* Top Navigation */}
@@ -20,7 +22,7 @@ export function LandingPage() {
             className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
           >
             Login
-          </Link>
+          </Link>          
           <span className="mx-2"></span> {/* Add a space between the buttons */}
           <Link
             to="/signup"
@@ -29,6 +31,7 @@ export function LandingPage() {
             Sign Up
           </Link>
         </div>
+        
       </nav>
       {/* Hero Section - Now full viewport height */}
       <div className="relative h-screen">

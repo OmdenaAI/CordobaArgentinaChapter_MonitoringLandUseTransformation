@@ -64,7 +64,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
+frontend/src/login/firebaseConfigs.tsx
 # Build directories
 dist/
 build/

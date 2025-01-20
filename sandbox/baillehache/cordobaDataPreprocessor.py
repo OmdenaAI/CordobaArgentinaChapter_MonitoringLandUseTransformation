@@ -76,7 +76,8 @@ class CordobaImage:
         self.width = width
         self.height = height
 
-        # Contains image data per band, dictionay key is the band name
+        # Contains image data per band, dictionary key is the band name,
+        # dictionary value is a numpy array of the value of the band
         self.bands = {}
 
     def __str__(self):

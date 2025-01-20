@@ -3,14 +3,20 @@ from PIL import Image
 # Import the CordobaDataPreprocessor module
 from cordobaDataPreprocessor import *
 
+# Import the CordobaPredictor module
+from cordobaPredictor import *
+
 # Create a preprocessor instance
 preprocessor = CordobaDataPreprocessor()
 # Select the data source
-preprocessor.select_source(CordobaDataSource.SENTINEL2)
-#preprocessor.select_source(CordobaDataSource.LANDSAT8)
+#preprocessor.select_source(CordobaDataSource.SENTINEL2)
+preprocessor.select_source(CordobaDataSource.LANDSAT8)
 
 print(f"data source: {preprocessor.data_source}")
 print(f"image resolution: {preprocessor.resolution}m/px")
+
+# Create a predictor
+predictor = CordobaPredictor()
 
 # Areas of interest
 area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
@@ -65,3 +71,10 @@ for i_area, area in enumerate(areas):
         path_ndbi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_ndbi.png"
         print(f"save image to {path_ndbi}")
         Image.fromarray(ndbi).save(path_ndbi)
+
+    # Predict the deforestation
+    deforest_image = predictor.getPcaKMeanClustering(images)
+    path_deforest = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_deforest.png"
+    print(f"save image to {path_deforest}")
+    Image.fromarray(deforest_image).save(path_deforest)
+   

@@ -31,4 +31,10 @@ villa alpina: -64.8501456212574, -64.70773302600543, -32.06252532553296, -31.933
 * I can't get any image from Landsat5 & Landsat8, even in GEE online app, whatever the date/cloud cover/area. I'm using "LANDSAT/LC08/C02/T1_L2" and "LANDSAT/LT05/C02/T1_L2", are they the right image collections ?
 * Using Sentinel2, I get crappy data depending on the date and area, and have no idea why ? (calmayo is always good, las penas always bad, villa alpina sometimes ok)
 
+* dark object substraction
+* image registration
+* gaussian blur
+* evi
+* ndbi
+-> "Initial tasks - Data Preprocessing and Analysis" ok
 

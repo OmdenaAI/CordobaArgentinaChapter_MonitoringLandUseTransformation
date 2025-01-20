@@ -118,14 +118,28 @@ class CordobaImage:
         # Create the result image
         image = numpy.zeros([self.height, self.width, 3], numpy.uint8)
         
+        # Variable to memorise eventual exceptions
+        raised_exc = None
+
         # Loop over the pixels
         for y in range(self.height):
             for x in range(self.width):
+ 
+                # Convert the band value to a pixel value
+                try:
+                    pixel_value = int(self.bands["ndvi"][y][x] / max_val * 255.0)
+                except Exception as exc:
+                    raised_exc = exc
+                    pixel_value = 0
 
                 # Composite the normalised bands
-                image[y][x][0] = self.bands["ndvi"][y][x] / max_val * 255.0
+                image[y][x][0] = pixel_value
                 image[y][x][1] = image[y][x][0]
                 image[y][x][2] = image[y][x][0]
+
+        # Inform the user if there has been exception
+        if raised_exc:
+            print(f"Exception raised during conversion:\n{raised_exc}")
 
         # Return the result image
         return image
@@ -367,11 +381,25 @@ class CordobaDataPreprocessor:
         image.bands["ndvi"] = \
             numpy.zeros([image.height, image.width], numpy.float32)
 
+        # Variable to memorise eventual exceptions
+        raised_exc = None
+
         # Loop on the pixels
         for y in range(image.height):
             for x in range(image.width):
 
+                # Calculate the NDVI value
+                try:
+                    ndvi_value = \
+                        (image.bands["nir"][y][x] - image.bands["red"][y][x]) / \
+                        (image.bands["nir"][y][x] + image.bands["red"][y][x])
+                except Exception as exc:
+                    raised_exc = exc
+                    ndvi_value = 0.0
+
                 # Update the NDVI value
-                image.bands["ndvi"][y][x] = \
-                    (image.bands["nir"][y][x] - image.bands["red"][y][x]) / \
-                    (image.bands["nir"][y][x] + image.bands["red"][y][x])
+                image.bands["ndvi"][y][x] = ndvi_value
+
+        # Inform the user if there has been exception
+        if raised_exc:
+            print(f"Exception raised during conversion:\n{raised_exc}")

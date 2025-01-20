@@ -167,9 +167,9 @@ class CordobaDataPreprocessor:
         # Set the data source to Sentinel-2 by default
         self.data_source = CordobaDataSource.SENTINEL2
 
-        # Set the threshold for the cloud coverage to 10% by default
+        # Set the threshold for the cloud coverage to 25% by default
         # (percentage of image pixels; in [0.0, 100.0])
-        self.max_cloud_coverage = 10.0
+        self.max_cloud_coverage = 25.0
 
         # Resolution of the returned image (in meter per pixel)
         self.resolution = 30.0
@@ -226,6 +226,8 @@ class CordobaDataPreprocessor:
 
         # Loop to search a date range around the required date which includes
         # at least one image
+        if self.flag_verbose:
+            print("image acquisition...")
         shift_day = 1
         date_from = ee.Date(date).advance(-shift_day, "day");
         date_to = ee.Date(date).advance(shift_day, "day");

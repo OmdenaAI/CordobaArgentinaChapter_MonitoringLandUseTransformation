@@ -26,13 +26,14 @@ area_lbls = ["calmayo", "las_penas", "villa_alpina"]
 # Recommended time windows:
 # Summer Time: 21 Dec - 21 March
 # Winter Time: 21 June - 21 Sept
-day_1 = "2023-07-01"
-day_2 = "2024-07-01"
+day_1 = "2023-08-01"
+day_2 = "2024-08-01"
 days = [day_1, day_2]
 
 # Loop on pair of area of interest and day of interest
 for i_area, area in enumerate(areas):
     for day in days:
+        print(f"=== {day} {area_lbls[i_area]}")
 
         # Get the image
         image = preprocessor.get_image(day, area)

@@ -162,6 +162,40 @@ class CordobaImage:
             # Substract the minimum value to all values in the band
             self.bands[band] -= min_value
 
+    def addNdvi(self):
+        """
+        Add a 'ndvi' band to the Cordoba image and calculate its value based
+        on other bands
+        The image is updated.
+        """
+
+        # Add the new band
+        self.bands["ndvi"] = \
+            numpy.zeros([self.height, self.width], numpy.float32)
+
+        # Variable to memorise eventual exceptions
+        raised_exc = None
+
+        # Loop on the pixels
+        for y in range(self.height):
+            for x in range(self.width):
+
+                # Calculate the NDVI value
+                try:
+                    ndvi_value = \
+                        (self.bands["nir"][y][x] - self.bands["red"][y][x]) / \
+                        (self.bands["nir"][y][x] + self.bands["red"][y][x])
+                except Exception as exc:
+                    raised_exc = exc
+                    ndvi_value = 0.0
+
+                # Update the NDVI value
+                self.bands["ndvi"][y][x] = ndvi_value
+
+        # Inform the user if there has been exception
+        if raised_exc:
+            print(f"Exception raised during conversion:\n{raised_exc}")
+
 
 class CordobaDataPreprocessor:
     """
@@ -195,6 +229,9 @@ class CordobaDataPreprocessor:
 
         # Verbose mode
         self.flag_verbose = True
+
+        # Gaussian blur parameters (if radius==0, no blur)
+        self.gaussian_blur = {"radius": 3, "sigma": 0.5}
 
     def select_source(self, source: CordobaDataSource):
         """
@@ -259,9 +296,10 @@ class CordobaDataPreprocessor:
             dataset_range = dataset.filterDate(date_from, date_to)
         ee_image = dataset_range.first()
 
-        # Add the remotely preprocessed bands
+        # Apply the remote preprocessing
         if self.flag_verbose:
             print("remote preprocessing...")
+        ee_image = self.preprocessGaussianBlur(ee_image)
         ee_image = self.preprocessNdvi(ee_image)
 
         # Return the ee.Image
@@ -446,14 +484,16 @@ class CordobaDataPreprocessor:
         # Return the result image
         return image
         
-    def preprocessNdvi(self, image: ee.Image):
+    def preprocessNdvi(self, image: ee.Image) -> ee.Image:
         """
         Add a 'ndvi' band to the ee.Image and calculate its value based
         on other bands
         image: the image to be preprocessed
-        The image is updated.
+        Return the preprocessed image.
         """
         # Get the dictionary of needed bands according to the source
+        if self.flag_verbose:
+            print("NDVI...")
         if self.data_source == CordobaDataSource.SENTINEL2:
             bands = {"NIR" : image.select("B8"), "RED" : image.select("B4")}
         elif self.data_source == CordobaDataSource.LANDSAT8:
@@ -470,37 +510,31 @@ class CordobaDataPreprocessor:
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)
 
-    def preprocessNdviLocal(self, image: CordobaImage):
+    def preprocessGaussianBlur(self, image: ee.Image) -> ee.Image:
         """
-        Add a 'ndvi' band to the Cordoba image and calculate its value based
-        on other bands
+        Add a gaussian blur to the ee.Image
         image: the image to be preprocessed
-        The image is updated.
+        Return the preprocessed image.
         """
+        # If there is no blurring apply, simply return the image
+        if self.gaussian_blur["radius"] == 0:
+            return image
 
-        # Add the new band
-        image.bands["ndvi"] = \
-            numpy.zeros([image.height, image.width], numpy.float32)
+        # Create burring gaussian kernel
+        if self.flag_verbose:
+            print(f"gaussian blur ({self.gaussian_blur['radius']}, {self.gaussian_blur['sigma']})...")
+        kernel = ee.Kernel.gaussian(
+          radius=self.gaussian_blur["radius"],
+          sigma=self.gaussian_blur["sigma"], 
+          units='pixels')
 
-        # Variable to memorise eventual exceptions
-        raised_exc = None
-
-        # Loop on the pixels
-        for y in range(image.height):
-            for x in range(image.width):
-
-                # Calculate the NDVI value
-                try:
-                    ndvi_value = \
-                        (image.bands["nir"][y][x] - image.bands["red"][y][x]) / \
-                        (image.bands["nir"][y][x] + image.bands["red"][y][x])
-                except Exception as exc:
-                    raised_exc = exc
-                    ndvi_value = 0.0
-
-                # Update the NDVI value
-                image.bands["ndvi"][y][x] = ndvi_value
-
-        # Inform the user if there has been exception
-        if raised_exc:
-            print(f"Exception raised during conversion:\n{raised_exc}")
+        # Apply the kernel to relevant bands and return the result
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            relevant_bands = ["B4", "B3", "B2", "B8"]
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            relevant_bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5"]
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            relevant_bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4"]
+        else:
+          return None
+        return image.select(relevant_bands, relevant_bands).convolve(kernel)

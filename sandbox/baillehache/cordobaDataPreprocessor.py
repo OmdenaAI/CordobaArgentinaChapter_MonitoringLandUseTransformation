@@ -163,6 +163,25 @@ class CordobaDataPreprocessor:
         # Verbose mode
         self.flag_verbose = True
 
+    def select_source(self, source: CordobaDataSource):
+        """
+        Select a data source for the images.
+        source: the data source
+        Update the source and related parameters (resolution)
+        """
+        self.data_source = source
+        if source == CordobaDataSource.SENTINEL2:
+            # TODO:
+            # would like to use
+            # self.resolution = 10.0
+            # but it raises in cvtEEImageToCordobaImage
+            # ee.ee_exception.EEException: Computed value is too large.
+            self.resolution = 30.0
+        elif source == CordobaDataSource.LANDSAT8:
+            self.resolution = 30.0
+        elif source == CordobaDataSource.LANDSAT5:
+            self.resolution = 30.0
+
     def get_image(self, date: str, area: LongLatBBox) -> List[CordobaImage]:
         """
         Get the satellite image for a given date and area.

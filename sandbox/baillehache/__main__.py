@@ -5,8 +5,8 @@ from cordobaDataPreprocessor import *
 
 # Create a preprocessor instance
 preprocessor = CordobaDataPreprocessor()
-# Eventually set the resolution of the images with:
-#preprocessor.resolution = 10.0
+# Select the data source
+preprocessor.select_source(CordobaDataSource.SENTINEL2)
 
 print(f"data source: {preprocessor.data_source}")
 print(f"image resolution: {preprocessor.resolution}m/px")

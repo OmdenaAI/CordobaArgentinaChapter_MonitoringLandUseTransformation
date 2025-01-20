@@ -147,6 +147,22 @@ class CordobaImage:
         # Return the result image
         return image
 
+    def darkObjectCorrection(self):
+        """
+        Apply dark object correction to  ee.Image
+        image: the image to be preprocessed
+        The image is updated.
+        """
+        # Loop on the bands
+        for band in self.bands.keys():
+
+            # Search for the minimum value
+            min_value = self.bands[band].min()
+
+            # Substract the minimum value to all values in the band
+            self.bands[band] -= min_value
+
+
 class CordobaDataPreprocessor:
     """
     Class implementing tasks of the team 'data preprocessing and analysis'
@@ -258,8 +274,7 @@ class CordobaDataPreprocessor:
         # Add the locally preprocessed bands
         if self.flag_verbose:
             print("local preprocessing...")
-        # Example placeholder (ndvi is calculated directly in GEE)
-        #self.preprocessNdviLocal(image)
+        image.darkObjectCorrection()
 
         # Return the image
         return image

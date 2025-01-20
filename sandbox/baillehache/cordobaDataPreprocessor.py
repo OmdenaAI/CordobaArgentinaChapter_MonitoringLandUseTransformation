@@ -223,17 +223,24 @@ class CordobaDataPreprocessor:
             date_from = ee.Date(date).advance(-shift_day, "day");
             date_to = ee.Date(date).advance(shift_day, "day");
             dataset_range = dataset.filterDate(date_from, date_to)
+        ee_image = dataset_range.first()
+
+        # Add the remotely preprocessed bands
+        if self.flag_verbose:
+            print("remote preprocessing...")
+        # Example placeholder (ndvi is calculated directly in GEE)
+        ee_image = self.preprocessNdvi(ee_image)
 
         # Convert the first available image into a CordobaImage
         if self.flag_verbose:
-            print("image acquired, converting to CordobaImage...")
-        image = self.cvtEEImageToCordobaImage(
-          dataset_range.first(), area, area_bounding)
+            print("converting to CordobaImage...")
+        image = self.cvtEEImageToCordobaImage(ee_image, area, area_bounding)
         
-        # Add the preprocessed bands
+        # Add the locally preprocessed bands
         if self.flag_verbose:
-            print("image preprocessing...")
-        self.preprocessNdvi(image)
+            print("local preprocessing...")
+        # Example placeholder (ndvi is calculated directly in GEE)
+        #self.preprocessNdviLocal(image)
 
         # Return the image
         return image
@@ -275,7 +282,8 @@ class CordobaDataPreprocessor:
           ["red", "B4"],
           ["green", "B3"],
           ["blue", "B2"],
-          ["nir", "B8"]
+          ["nir", "B8"],
+          ["ndvi", "ndvi"]
         ]
 
         # Extract each relevant band as a numpy array
@@ -330,7 +338,24 @@ class CordobaDataPreprocessor:
         # Return the result image
         return image
         
-    def preprocessNdvi(self, image: CordobaImage):
+    def preprocessNdvi(self, image: ee.Image):
+        """
+        Add a 'ndvi' band to the ee.Image and calculate its value based
+        on other bands
+        image: the image to be preprocessed
+        The image is updated.
+        """
+        # Calculate the NDVI values
+        ndvi = \
+            image.expression(
+                "(NIR - RED) / (NIR + RED)",
+                {"NIR" : image.select("B8"), "RED" : image.select("B4")}
+            ).rename("ndvi")
+
+        # Add the NDVI values to the image as a new band
+        return image.addBands(ndvi)
+
+    def preprocessNdviLocal(self, image: CordobaImage):
         """
         Add a 'ndvi' band to the Cordoba image and calculate its value based
         on other bands

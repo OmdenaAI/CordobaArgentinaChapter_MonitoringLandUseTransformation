@@ -108,15 +108,16 @@ class CordobaImage:
         # Return the result image
         return image
 
-    def toNDVI(self) -> numpy.array:
+    def toGreyScale(self, band) -> numpy.array:
         """
         Convert a CordobaImage into a NDVI array
+        band: the band to use
         Return the NDVI as a numpy array.
         Pixel values in [0,255]. NDVI band normalised.
         """
         
         # Get the max value over ndvi bands for normalisation
-        max_val = self.bands["ndvi"].max()
+        max_val = self.bands[band].max()
 
         # Create the result image
         image = numpy.zeros([self.height, self.width, 3], numpy.uint8)
@@ -130,7 +131,7 @@ class CordobaImage:
  
                 # Convert the band value to a pixel value
                 try:
-                    pixel_value = int(self.bands["ndvi"][y][x] / max_val * 255.0)
+                    pixel_value = int(self.bands[band][y][x] / max_val * 255.0)
                 except Exception as exc:
                     raised_exc = exc
                     pixel_value = 0
@@ -146,6 +147,22 @@ class CordobaImage:
 
         # Return the result image
         return image
+
+    def toNDVI(self) -> numpy.array:
+        """
+        Convert a CordobaImage into a NDVI array
+        Return the NDVI as a numpy array.
+        Pixel values in [0,255], 3 channels. NDVI band normalised.
+        """
+        return self.toGreyScale("ndvi")
+
+    def toEVI(self) -> numpy.array:
+        """
+        Convert a CordobaImage into a EVI array
+        Return the EVI as a numpy array.
+        Pixel values in [0,255], 3 channels. EVI band normalised.
+        """
+        return self.toGreyScale("evi")
 
     def darkObjectCorrection(self):
         """
@@ -301,6 +318,7 @@ class CordobaDataPreprocessor:
             print("remote preprocessing...")
         ee_image = self.preprocessGaussianBlur(ee_image)
         ee_image = self.preprocessNdvi(ee_image)
+        ee_image = self.preprocessEvi(ee_image)
 
         # Return the ee.Image
         return ee_image
@@ -407,7 +425,8 @@ class CordobaDataPreprocessor:
               ["green", "B3"],
               ["blue", "B2"],
               ["nir", "B8"],
-              ["ndvi", "ndvi"]
+              ["ndvi", "ndvi"],
+              ["evi", "evi"]
             ]
         elif self.data_source == CordobaDataSource.LANDSAT8:
             relevant_bands = [
@@ -417,7 +436,8 @@ class CordobaDataPreprocessor:
               ["green", "SR_B3"],
               ["blue", "SR_B2"],
               ["nir", "SR_B5"],
-              ["ndvi", "ndvi"]
+              ["ndvi", "ndvi"],
+              ["evi", "evi"]
             ]
         elif self.data_source == CordobaDataSource.LANDSAT5:
             relevant_bands = [
@@ -427,7 +447,8 @@ class CordobaDataPreprocessor:
               ["green", "SR_B2"],
               ["blue", "SR_B1"],
               ["nir", "SR_B4"],
-              ["ndvi", "ndvi"]
+              ["ndvi", "ndvi"],
+              ["evi", "evi"]
             ]
         else:
           return None
@@ -509,6 +530,43 @@ class CordobaDataPreprocessor:
 
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)
+
+    def preprocessEvi(self, image: ee.Image) -> ee.Image:
+        """
+        Add a 'evi' band to the ee.Image and calculate its value based
+        on other bands
+        image: the image to be preprocessed
+        Return the preprocessed image.
+        """
+        # Get the dictionary of needed bands according to the source
+        if self.flag_verbose:
+            print("EVI...")
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            bands = {
+                "NIR" : image.select("B8"),
+                "RED" : image.select("B4"),
+                "BLUE" : image.select("B2")}
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            bands = {
+                "NIR" : image.select("SR_B5"),
+                "RED" : image.select("SR_B4"),
+                "BLUE" : image.select("SR_B2")}
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            bands = {
+                "NIR" : image.select("SR_B4"),
+                "RED" : image.select("SR_B3"),
+                "BLUE" : image.select("SR_B1")}
+        else:
+          return image
+
+        # Calculate the EVI values
+        evi = \
+            image.expression(
+            "2.5 * (NIR - RED) / (NIR + 6.0 * RED - 7.5 * BLUE + 1.0)",
+            bands).rename("evi")
+
+        # Add the EVI values to the image as a new band
+        return image.addBands(evi)
 
     def preprocessGaussianBlur(self, image: ee.Image) -> ee.Image:
         """

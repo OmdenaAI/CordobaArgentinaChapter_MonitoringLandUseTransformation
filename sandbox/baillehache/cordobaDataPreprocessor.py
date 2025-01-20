@@ -303,7 +303,10 @@ class CordobaDataPreprocessor:
             # Update the pixel value for each relevant band in the
             # numpy arrays
             for band_lbl in relevant_bands:
-                image.bands[band_lbl[0]][y][x] = data_bands[band_lbl[0]][idx]
+                # TODO
+                # Different bands have different size array. Why ??
+                if idx < data_bands[band_lbl[0]].shape[0]:
+                    image.bands[band_lbl[0]][y][x] = data_bands[band_lbl[0]][idx]
 
         # Return the result image
         return image

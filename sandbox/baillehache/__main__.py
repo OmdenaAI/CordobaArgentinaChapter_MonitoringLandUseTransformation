@@ -7,7 +7,6 @@ from cordobaDataPreprocessor import *
 preprocessor = CordobaDataPreprocessor()
 # Select the data source
 preprocessor.select_source(CordobaDataSource.SENTINEL2)
-#preprocessor.max_cloud_coverage = 100.0
 
 print(f"data source: {preprocessor.data_source}")
 print(f"image resolution: {preprocessor.resolution}m/px")

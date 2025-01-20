@@ -414,6 +414,8 @@ class CordobaDataPreprocessor:
         area: the requested area as a LongLatBBox
         area_bounding: the requested area as a ee.Geometry.Rectangle
         Return a CordobaImage
+        TODO: I'm really  not convinced that's the correct way to do it, and
+        it's awfuly slow
         """
         
         # Get the acquisition date of the image

@@ -7,6 +7,7 @@ from cordobaDataPreprocessor import *
 preprocessor = CordobaDataPreprocessor()
 # Select the data source
 preprocessor.select_source(CordobaDataSource.SENTINEL2)
+#preprocessor.max_cloud_coverage = 100.0
 
 print(f"data source: {preprocessor.data_source}")
 print(f"image resolution: {preprocessor.resolution}m/px")
@@ -26,8 +27,8 @@ area_lbls = ["calmayo", "las_penas", "villa_alpina"]
 # Recommended time windows:
 # Summer Time: 21 Dec - 21 March
 # Winter Time: 21 June - 21 Sept
-day_1 = "2023-08-01"
-day_2 = "2024-08-01"
+day_1 = "2019-08-01"
+day_2 = "2023-08-01"
 days = [day_1, day_2]
 
 # Loop on pair of area of interest and day of interest
@@ -40,7 +41,7 @@ for i_area, area in enumerate(areas):
         print(f"downloaded {image}")
 
         # Save the RGB bands to a png file
-        rgb = image.toRGB()
+        rgb = image.toRGB(gamma=0.66)
         path_rgb = f"./Data/{area_lbls[i_area]}_{day}_rgb.png"
         print(f"save image to {path_rgb}")
         Image.fromarray(rgb).save(path_rgb)

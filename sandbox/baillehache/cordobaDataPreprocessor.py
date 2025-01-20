@@ -300,8 +300,17 @@ class CordobaDataPreprocessor:
         dataset = dataset.filterBounds(area_bounding)
 
         # Filter the image collection to reject images with too many clouds
-        filter_cloud = \
-            ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', self.max_cloud_coverage)
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            filter_cloud = \
+                ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', self.max_cloud_coverage)
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            filter_cloud = \
+                ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            filter_cloud = \
+                ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
+        else:
+          return None
         dataset = dataset.filter(filter_cloud)
 
         # Loop to search a date range around the required date which includes

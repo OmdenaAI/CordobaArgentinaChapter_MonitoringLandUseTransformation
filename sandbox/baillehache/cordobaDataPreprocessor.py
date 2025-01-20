@@ -11,7 +11,10 @@ class CordobaDataSource(Enum):
     """
     # https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED
     SENTINEL2 = 1
+    # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
     LANDSAT8 = 2
+    # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LT05_C02_T1_L2
+    LANDSAT5 = 3
 
 
 class LongLatBBox:
@@ -209,9 +212,9 @@ class CordobaDataPreprocessor:
         if self.data_source == CordobaDataSource.SENTINEL2:
           dataset = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
         elif self.data_source == CordobaDataSource.LANDSAT8:
-          # TODO: find the ID for Landsat-8 image collection
-          # dataset = ee.ImageCollection('')
-          return []
+          dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+          dataset = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2')
         else:
           return []
 
@@ -291,16 +294,38 @@ class CordobaDataPreprocessor:
           scale = self.resolution)
 
         # List of relevant bands ([lbl_CordobaImage, lbl_EE_Image])
-        # TODO switch according to data source
-        relevant_bands = [
-          ["latitude", "latitude"],
-          ["longitude", "longitude"],
-          ["red", "B4"],
-          ["green", "B3"],
-          ["blue", "B2"],
-          ["nir", "B8"],
-          ["ndvi", "ndvi"]
-        ]
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            relevant_bands = [
+              ["latitude", "latitude"],
+              ["longitude", "longitude"],
+              ["red", "B4"],
+              ["green", "B3"],
+              ["blue", "B2"],
+              ["nir", "B8"],
+              ["ndvi", "ndvi"]
+            ]
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            relevant_bands = [
+              ["latitude", "latitude"],
+              ["longitude", "longitude"],
+              ["red", "SR_B4"],
+              ["green", "SR_B3"],
+              ["blue", "SR_B2"],
+              ["nir", "SR_B5"],
+              ["ndvi", "ndvi"]
+            ]
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            relevant_bands = [
+              ["latitude", "latitude"],
+              ["longitude", "longitude"],
+              ["red", "SR_B3"],
+              ["green", "SR_B2"],
+              ["blue", "SR_B1"],
+              ["nir", "SR_B4"],
+              ["ndvi", "ndvi"]
+            ]
+        else:
+          return None
 
         # Extract each relevant band as a numpy array
         data_bands = {}
@@ -361,12 +386,19 @@ class CordobaDataPreprocessor:
         image: the image to be preprocessed
         The image is updated.
         """
+        # Get the dictionary of needed bands according to the source
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            bands = {"NIR" : image.select("B8"), "RED" : image.select("B4")}
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            bands = {"NIR" : image.select("SR_B5"), "RED" : image.select("SR_B4")}
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            bands = {"NIR" : image.select("SR_B4"), "RED" : image.select("B3")}
+        else:
+          return image
+
         # Calculate the NDVI values
         ndvi = \
-            image.expression(
-                "(NIR - RED) / (NIR + RED)",
-                {"NIR" : image.select("B8"), "RED" : image.select("B4")}
-            ).rename("ndvi")
+            image.expression("(NIR - RED) / (NIR + RED)", bands).rename("ndvi")
 
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)

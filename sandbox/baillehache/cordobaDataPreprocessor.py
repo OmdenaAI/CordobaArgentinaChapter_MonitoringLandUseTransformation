@@ -160,6 +160,9 @@ class CordobaDataPreprocessor:
         # Resolution of the returned image (in meter per pixel)
         self.resolution = 30.0
 
+        # Verbose mode
+        self.flag_verbose = true
+
     def get_image(self, date: str, area: LongLatBBox) -> List[CordobaImage]:
         """
         Get the satellite image for a given date and area.
@@ -195,16 +198,22 @@ class CordobaDataPreprocessor:
         date_to = ee.Date(date).advance(shift_day, "day");
         dataset_range = dataset.filterDate(date_from, date_to)
         while dataset_range.size().getInfo() == 0:
-            shift_day += 1
+            if self.flag_verbose:
+                print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()}")
+            shift_day += 5
             date_from = ee.Date(date).advance(-shift_day, "day");
             date_to = ee.Date(date).advance(shift_day, "day");
             dataset_range = dataset.filterDate(date_from, date_to)
 
         # Convert the first available image into a CordobaImage
+        if self.flag_verbose:
+            print("image acquired, converting to CordobaImage...")
         image = self.cvtEEImageToCordobaImage(
           dataset_range.first(), area, area_bounding)
         
         # Add the preprocessed bands
+        if self.flag_verbose:
+            print("image preprocessing...")
         self.preprocessNdvi(image)
 
         # Return the image

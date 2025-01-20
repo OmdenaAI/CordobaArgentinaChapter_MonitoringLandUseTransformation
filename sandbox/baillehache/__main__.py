@@ -7,6 +7,7 @@ from cordobaDataPreprocessor import *
 preprocessor = CordobaDataPreprocessor()
 # Select the data source
 preprocessor.select_source(CordobaDataSource.SENTINEL2)
+#preprocessor.select_source(CordobaDataSource.LANDSAT8)
 
 print(f"data source: {preprocessor.data_source}")
 print(f"image resolution: {preprocessor.resolution}m/px")
@@ -43,24 +44,24 @@ for i_area, area in enumerate(areas):
 
         # Save the RGB bands to a png file
         rgb = images[i_image].toRGB(gamma=0.66)
-        path_rgb = f"./Data/{area_lbls[i_area]}_{days[i_image]}_rgb.png"
+        path_rgb = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_rgb.png"
         print(f"save image to {path_rgb}")
         Image.fromarray(rgb).save(path_rgb)
 
         # Save the NDVI band to a png file
         ndvi = images[i_image].toNDVI()
-        path_ndvi = f"./Data/{area_lbls[i_area]}_{days[i_image]}_ndvi.png"
+        path_ndvi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_ndvi.png"
         print(f"save image to {path_ndvi}")
         Image.fromarray(ndvi).save(path_ndvi)
 
         # Save the EVI band to a png file
         evi = images[i_image].toEVI()
-        path_evi = f"./Data/{area_lbls[i_area]}_{days[i_image]}_evi.png"
+        path_evi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_evi.png"
         print(f"save image to {path_evi}")
         Image.fromarray(evi).save(path_evi)
 
         # Save the NDBI band to a png file
         ndbi = images[i_image].toNDBI()
-        path_ndbi = f"./Data/{area_lbls[i_area]}_{days[i_image]}_ndbi.png"
+        path_ndbi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_ndbi.png"
         print(f"save image to {path_ndbi}")
         Image.fromarray(ndbi).save(path_ndbi)

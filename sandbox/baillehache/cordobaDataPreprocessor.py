@@ -10,12 +10,17 @@ class CordobaDataSource(Enum):
     Enumeration to identify the available image sources
     """
     # https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED
-    SENTINEL2 = 1
+    SENTINEL2 = 0
     # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
-    LANDSAT8 = 2
+    LANDSAT8 = 1
     # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LT05_C02_T1_L2
-    LANDSAT5 = 3
+    LANDSAT5 = 2
 
+    def __str__(self):
+        """
+        String representation
+        """
+        return str(self.name)
 
 class LongLatBBox:
     """

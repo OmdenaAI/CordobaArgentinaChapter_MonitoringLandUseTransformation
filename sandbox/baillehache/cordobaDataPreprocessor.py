@@ -67,6 +67,8 @@ class CordobaImage:
         self.resolution = resolution
         self.width = width
         self.height = height
+
+        # Contains image data per band, dictionay key is the band name
         self.bands = {}
 
     def __str__(self):
@@ -75,7 +77,7 @@ class CordobaImage:
         """
         return f"acquisition date: {self.date}, area: {self.area}, resolution: {self.resolution}m/px, width: {self.width}px, height: {self.height}px"
 
-    def toRGB(self) -> numpy.array:
+    def toRGB(self, gamma=1.0) -> numpy.array:
         """
         Convert a CordobaImage into a RGB array
         Return the composite of red, green, blue bands as a numpy array.
@@ -93,9 +95,12 @@ class CordobaImage:
             for x in range(self.width):
 
                 # Composite the normalised bands
-                image[y][x][0] = self.bands["red"][y][x] / max_val * 255.0
-                image[y][x][1] = self.bands["green"][y][x] / max_val * 255.0
-                image[y][x][2] = self.bands["blue"][y][x] / max_val * 255.0
+                image[y][x][0] = \
+                  ((self.bands["red"][y][x] / max_val) ** gamma) * 255.0
+                image[y][x][1] = \
+                  ((self.bands["green"][y][x] / max_val) ** gamma) * 255.0
+                image[y][x][2] = \
+                  ((self.bands["blue"][y][x] / max_val) ** gamma) * 255.0
 
         # Return the result image
         return image

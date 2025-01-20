@@ -215,12 +215,12 @@ class CordobaDataPreprocessor:
         elif source == CordobaDataSource.LANDSAT5:
             self.resolution = 30.0
 
-    def get_image(self, date: str, area: LongLatBBox) -> List[CordobaImage]:
+    def get_ee_image(self, date: str, area_bounding: ee.Geometry.Rectangle) -> ee.Image:
         """
         Get the satellite image for a given date and area.
         date: the date (eg. "2024-12-01")
-        area: the area of interest
-        Return the available image fully covering the area of interest
+        area_bnding: the area of interest
+        Return the available ee.Image fully covering the area of interest
         and nearest to the required date
         """
 
@@ -232,10 +232,9 @@ class CordobaDataPreprocessor:
         elif self.data_source == CordobaDataSource.LANDSAT5:
           dataset = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2')
         else:
-          return []
+          return None
 
         # Filter the image collection over the area of interest
-        area_bounding = area.toEERectangle()
         dataset = dataset.filterBounds(area_bounding)
 
         # Filter the image collection to reject images with too many clouds
@@ -263,8 +262,23 @@ class CordobaDataPreprocessor:
         # Add the remotely preprocessed bands
         if self.flag_verbose:
             print("remote preprocessing...")
-        # Example placeholder (ndvi is calculated directly in GEE)
         ee_image = self.preprocessNdvi(ee_image)
+
+        # Return the ee.Image
+        return ee_image
+
+    def get_image(self, date: str, area: LongLatBBox) -> CordobaImage:
+        """
+        Get the satellite image for a given date and area.
+        date: the date (eg. "2024-12-01")
+        area: the area of interest
+        Return the available image fully covering the area of interest
+        and nearest to the required date
+        """
+
+        # Get the ee.Image
+        area_bounding = area.toEERectangle()
+        ee_image = self.get_ee_image(date, area_bounding)
 
         # Convert the first available image into a CordobaImage
         if self.flag_verbose:
@@ -278,6 +292,44 @@ class CordobaDataPreprocessor:
 
         # Return the image
         return image
+
+    def get_registered_images(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
+        """
+        Get the satellite image for a given date and area.
+        dates: two dates (eg. ["2024-11-01", "2024-12-01"])
+        area: the area of interest
+        Return the available images fully covering the area of interest
+        and nearest to the required date, the second image is registered against
+        the first one
+        """
+
+        # Get the two ee.Image
+        area_bounding = area.toEERectangle()
+        ee_images = [
+            self.get_ee_image(dates[0], area_bounding),
+            self.get_ee_image(dates[1], area_bounding)]
+
+        # Apply registration
+        ee_images[1] = ee_images[1].register(
+            referenceImage=ee_images[0],
+            maxOffset=50.0,
+            patchWidth=100.0)
+
+        # Convert the ee.images into a CordobaImage
+        if self.flag_verbose:
+            print("converting to CordobaImage...")
+        images = [
+            self.cvtEEImageToCordobaImage(ee_images[0], area, area_bounding),
+            self.cvtEEImageToCordobaImage(ee_images[1], area, area_bounding)]
+        
+        # Add the locally preprocessed bands
+        if self.flag_verbose:
+            print("local preprocessing...")
+        images[0].darkObjectCorrection()
+        images[1].darkObjectCorrection()
+
+        # Return the images
+        return images
 
     def cvtEEImageToCordobaImage(self,
         ee_image: ee.Image, area: LongLatBBox,

@@ -33,21 +33,23 @@ days = [day_1, day_2]
 
 # Loop on pair of area of interest and day of interest
 for i_area, area in enumerate(areas):
-    for day in days:
-        print(f"=== {day} {area_lbls[i_area]}")
+    print(f"=== {area_lbls[i_area]}")
 
-        # Get the image
-        image = preprocessor.get_image(day, area)
-        print(f"downloaded {image}")
+    # Get the images
+    images = preprocessor.get_registered_images(days, area)
+    print(f"downloaded:\n{images[0]}\n{images[1]}\n")
+
+    # For each image
+    for i_image in range(2):
 
         # Save the RGB bands to a png file
-        rgb = image.toRGB(gamma=0.66)
-        path_rgb = f"./Data/{area_lbls[i_area]}_{day}_rgb.png"
+        rgb = images[i_image].toRGB(gamma=0.66)
+        path_rgb = f"./Data/{area_lbls[i_area]}_{days[i_image]}_rgb.png"
         print(f"save image to {path_rgb}")
         Image.fromarray(rgb).save(path_rgb)
 
         # Save the NDVI band to a png file
-        ndvi = image.toNDVI()
-        path_ndvi = f"./Data/{area_lbls[i_area]}_{day}_ndvi.png"
+        ndvi = images[i_image].toNDVI()
+        path_ndvi = f"./Data/{area_lbls[i_area]}_{days[i_image]}_ndvi.png"
         print(f"save image to {path_ndvi}")
         Image.fromarray(ndvi).save(path_ndvi)

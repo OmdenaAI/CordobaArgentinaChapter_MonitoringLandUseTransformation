@@ -59,3 +59,9 @@ for i_area, area in enumerate(areas):
         path_evi = f"./Data/{area_lbls[i_area]}_{days[i_image]}_evi.png"
         print(f"save image to {path_evi}")
         Image.fromarray(evi).save(path_evi)
+
+        # Save the NDBI band to a png file
+        ndbi = images[i_image].toNDBI()
+        path_ndbi = f"./Data/{area_lbls[i_area]}_{days[i_image]}_ndbi.png"
+        print(f"save image to {path_ndbi}")
+        Image.fromarray(ndbi).save(path_ndbi)

@@ -110,13 +110,13 @@ class CordobaImage:
 
     def toGreyScale(self, band) -> numpy.array:
         """
-        Convert a CordobaImage into a NDVI array
+        Convert a CordobaImage into a numpy array
         band: the band to use
-        Return the NDVI as a numpy array.
-        Pixel values in [0,255]. NDVI band normalised.
+        Return the numpy array.
+        Pixel values in [0,255]. Values normalised.
         """
         
-        # Get the max value over ndvi bands for normalisation
+        # Get the max value for normalisation
         max_val = self.bands[band].max()
 
         # Create the result image
@@ -155,6 +155,14 @@ class CordobaImage:
         Pixel values in [0,255], 3 channels. NDVI band normalised.
         """
         return self.toGreyScale("ndvi")
+
+    def toNDBI(self) -> numpy.array:
+        """
+        Convert a CordobaImage into a NDBI array
+        Return the NDVI as a numpy array.
+        Pixel values in [0,255], 3 channels. NDBI band normalised.
+        """
+        return self.toGreyScale("ndbi")
 
     def toEVI(self) -> numpy.array:
         """
@@ -318,6 +326,7 @@ class CordobaDataPreprocessor:
             print("remote preprocessing...")
         ee_image = self.preprocessGaussianBlur(ee_image)
         ee_image = self.preprocessNdvi(ee_image)
+        ee_image = self.preprocessNdbi(ee_image)
         ee_image = self.preprocessEvi(ee_image)
 
         # Return the ee.Image
@@ -426,6 +435,7 @@ class CordobaDataPreprocessor:
               ["blue", "B2"],
               ["nir", "B8"],
               ["ndvi", "ndvi"],
+              ["ndbi", "ndbi"],
               ["evi", "evi"]
             ]
         elif self.data_source == CordobaDataSource.LANDSAT8:
@@ -437,6 +447,7 @@ class CordobaDataPreprocessor:
               ["blue", "SR_B2"],
               ["nir", "SR_B5"],
               ["ndvi", "ndvi"],
+              ["ndbi", "ndbi"],
               ["evi", "evi"]
             ]
         elif self.data_source == CordobaDataSource.LANDSAT5:
@@ -448,6 +459,7 @@ class CordobaDataPreprocessor:
               ["blue", "SR_B1"],
               ["nir", "SR_B4"],
               ["ndvi", "ndvi"],
+              ["ndbi", "ndbi"],
               ["evi", "evi"]
             ]
         else:
@@ -531,6 +543,33 @@ class CordobaDataPreprocessor:
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)
 
+    def preprocessNdbi(self, image: ee.Image) -> ee.Image:
+        """
+        Add a 'ndbi' band to the ee.Image and calculate its value based
+        on other bands
+        image: the image to be preprocessed
+        Return the preprocessed image.
+        """
+        # Get the dictionary of needed bands according to the source
+        if self.flag_verbose:
+            print("NDBI...")
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            bands = {"NIR" : image.select("B8"), "SWIR" : image.select("B11")}
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            bands = {"NIR" : image.select("SR_B5"), "SWIR" : image.select("SR_B6")}
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            # No swir band
+            return image
+        else:
+          return image
+
+        # Calculate the NDBI values
+        ndbi = \
+            image.expression("(SWIR - NIR) / (SWIR + NIR)", bands).rename("ndbi")
+
+        # Add the NDBI values to the image as a new band
+        return image.addBands(ndbi)
+
     def preprocessEvi(self, image: ee.Image) -> ee.Image:
         """
         Add a 'evi' band to the ee.Image and calculate its value based
@@ -588,9 +627,9 @@ class CordobaDataPreprocessor:
 
         # Apply the kernel to relevant bands and return the result
         if self.data_source == CordobaDataSource.SENTINEL2:
-            relevant_bands = ["B4", "B3", "B2", "B8"]
+            relevant_bands = ["B4", "B3", "B2", "B8", "B11"]
         elif self.data_source == CordobaDataSource.LANDSAT8:
-            relevant_bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5"]
+            relevant_bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "SR_B6"]
         elif self.data_source == CordobaDataSource.LANDSAT5:
             relevant_bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4"]
         else:

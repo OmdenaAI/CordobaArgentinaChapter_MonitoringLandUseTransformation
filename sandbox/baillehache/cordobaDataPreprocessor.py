@@ -161,7 +161,7 @@ class CordobaDataPreprocessor:
         self.resolution = 30.0
 
         # Verbose mode
-        self.flag_verbose = true
+        self.flag_verbose = True
 
     def get_image(self, date: str, area: LongLatBBox) -> List[CordobaImage]:
         """

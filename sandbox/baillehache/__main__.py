@@ -17,12 +17,17 @@ area_los_medanitos = LongLatBBox(-65.7, -65.6, -31.6, -31.5)
 area_calmayo = LongLatBBox(-64.53518510984365, -64.36758169478006, -32.09793491720308, -31.98599080824592)
 area_las_penas = LongLatBBox(-64.19504913677835, -63.92899759153784, -30.67255559541076, -30.43974550819874)
 area_villa_alpina = LongLatBBox(-64.8501456212574, -64.70773302600543, -32.06252532553296, -31.93373503424498)
-areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina]
-area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina"]
+all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina]
+all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina"]
+areas = [area_calmayo, area_las_penas, area_villa_alpina]
+area_lbls = ["calmayo", "las_penas", "villa_alpina"]
 
 # Days of interests
-day_1 = "2023-12-01"
-day_2 = "2024-12-01"
+# Recommended time windows:
+# Summer Time: 21 Dec - 21 March
+# Winter Time: 21 June - 21 Sept
+day_1 = "2023-07-01"
+day_2 = "2024-07-01"
 days = [day_1, day_2]
 
 # Loop on pair of area of interest and day of interest

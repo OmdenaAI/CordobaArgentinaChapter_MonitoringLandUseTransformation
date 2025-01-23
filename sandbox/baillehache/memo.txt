@@ -1,0 +1,40 @@
+01/04:
+TODO
+* read the papers
+* create own folder in repo/sandbox on main branch, and create sperate branch with pull request only when needed
+* get credential for google earth engine
+
+01/06:
+* CNN seems to work best
+* SAR images seem to work best
+* Registered to GEE:
+project-id: ee-baillehachepascal
+
+01/11:
+* I think I should continue study GEE, and maybe target an alignment function deleivered for next week. Not much directives, so I have to move on by myself.
+
+01/18:
+* Team leader for Data Preprocessing and Analysis : 
+Davide Calvi
+Syed Mujtaba
+* We need to create the pipeline downloading images and preparing them for the other theams
+* Need more concrete details (if I don't have, I'll keep studying GEE)
+
+01/20:
+*
+kmz files are actually zip files. If you rename the '.kmz' into '.zip' and unzip it you get a '.kml' file. The '.kml' file is a text file containing the description of the area of interest. It should be possible to import it in Google Earth, but I wasn't able to do it even if following online instruction. Anyway, the relevant information are, I guess, the bounding box of these areas of interest, which are:
+calmayo: -64.53518510984365, -64.36758169478006, -32.09793491720308, -31.98599080824592
+las penas: -64.19504913677835, -63.92899759153784, -30.67255559541076, -30.43974550819874
+villa alpina: -64.8501456212574, -64.70773302600543, -32.06252532553296, -31.93373503424498
+
+* Using 10m/px generates too much data to be used locally. It raises exception "ee.ee_exception.EEException: Computed value is too large." when I try to get the bands raw data to create an image. Maybe transferring data from GEE to Google drive solves the problem ?
+* I can't get any image from Landsat5 & Landsat8, even in GEE online app, whatever the date/cloud cover/area. I'm using "LANDSAT/LC08/C02/T1_L2" and "LANDSAT/LT05/C02/T1_L2", are they the right image collections ?
+* Using Sentinel2, I get crappy data depending on the date and area, and have no idea why ? (calmayo is always good, las penas always bad, villa alpina sometimes ok)
+
+* dark object substraction
+* image registration
+* gaussian blur
+* evi
+* ndbi
+-> "Initial tasks - Data Preprocessing and Analysis" ok
+

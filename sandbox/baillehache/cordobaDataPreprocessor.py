@@ -10,9 +10,17 @@ class CordobaDataSource(Enum):
     Enumeration to identify the available image sources
     """
     # https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED
-    SENTINEL2 = 1
-    LANDSAT8 = 2
+    SENTINEL2 = 0
+    # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2
+    LANDSAT8 = 1
+    # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LT05_C02_T1_L2
+    LANDSAT5 = 2
 
+    def __str__(self):
+        """
+        String representation
+        """
+        return str(self.name)
 
 class LongLatBBox:
     """
@@ -67,6 +75,9 @@ class CordobaImage:
         self.resolution = resolution
         self.width = width
         self.height = height
+
+        # Contains image data per band, dictionary key is the band name,
+        # dictionary value is a numpy array of the value of the band
         self.bands = {}
 
     def __str__(self):
@@ -75,7 +86,7 @@ class CordobaImage:
         """
         return f"acquisition date: {self.date}, area: {self.area}, resolution: {self.resolution}m/px, width: {self.width}px, height: {self.height}px"
 
-    def toRGB(self) -> numpy.array:
+    def toRGB(self, gamma=1.0) -> numpy.array:
         """
         Convert a CordobaImage into a RGB array
         Return the composite of red, green, blue bands as a numpy array.
@@ -93,9 +104,52 @@ class CordobaImage:
             for x in range(self.width):
 
                 # Composite the normalised bands
-                image[y][x][0] = self.bands["red"][y][x] / max_val * 255.0
-                image[y][x][1] = self.bands["green"][y][x] / max_val * 255.0
-                image[y][x][2] = self.bands["blue"][y][x] / max_val * 255.0
+                image[y][x][0] = \
+                  ((self.bands["red"][y][x] / max_val) ** gamma) * 255.0
+                image[y][x][1] = \
+                  ((self.bands["green"][y][x] / max_val) ** gamma) * 255.0
+                image[y][x][2] = \
+                  ((self.bands["blue"][y][x] / max_val) ** gamma) * 255.0
+
+        # Return the result image
+        return image
+
+    def toGreyScale(self, band) -> numpy.array:
+        """
+        Convert a CordobaImage into a numpy array
+        band: the band to use
+        Return the numpy array.
+        Pixel values in [0,255]. Values normalised.
+        """
+        
+        # Get the max value for normalisation
+        max_val = self.bands[band].max()
+
+        # Create the result image
+        image = numpy.zeros([self.height, self.width, 3], numpy.uint8)
+        
+        # Variable to memorise eventual exceptions
+        raised_exc = None
+
+        # Loop over the pixels
+        for y in range(self.height):
+            for x in range(self.width):
+ 
+                # Convert the band value to a pixel value
+                try:
+                    pixel_value = int(self.bands[band][y][x] / max_val * 255.0)
+                except Exception as exc:
+                    raised_exc = exc
+                    pixel_value = 0
+
+                # Composite the normalised bands
+                image[y][x][0] = pixel_value
+                image[y][x][1] = image[y][x][0]
+                image[y][x][2] = image[y][x][0]
+
+        # Inform the user if there has been exception
+        if raised_exc:
+            print(f"Exception raised during conversion:\n{raised_exc}")
 
         # Return the result image
         return image
@@ -104,26 +158,75 @@ class CordobaImage:
         """
         Convert a CordobaImage into a NDVI array
         Return the NDVI as a numpy array.
-        Pixel values in [0,255]. NDVI band normalised.
+        Pixel values in [0,255], 3 channels. NDVI band normalised.
         """
-        
-        # Get the max value over ndvi bands for normalisation
-        max_val = self.bands["ndvi"].max()
+        return self.toGreyScale("ndvi")
 
-        # Create the result image
-        image = numpy.zeros([self.height, self.width, 3], numpy.uint8)
-        
-        # Loop over the pixels
+    def toNDBI(self) -> numpy.array:
+        """
+        Convert a CordobaImage into a NDBI array
+        Return the NDVI as a numpy array.
+        Pixel values in [0,255], 3 channels. NDBI band normalised.
+        """
+        return self.toGreyScale("ndbi")
+
+    def toEVI(self) -> numpy.array:
+        """
+        Convert a CordobaImage into a EVI array
+        Return the EVI as a numpy array.
+        Pixel values in [0,255], 3 channels. EVI band normalised.
+        """
+        return self.toGreyScale("evi")
+
+    def darkObjectCorrection(self):
+        """
+        Apply dark object correction to  ee.Image
+        image: the image to be preprocessed
+        The image is updated.
+        """
+        # Loop on the bands
+        for band in self.bands.keys():
+
+            # Search for the minimum value
+            min_value = self.bands[band].min()
+
+            # Substract the minimum value to all values in the band
+            self.bands[band] -= min_value
+
+    def addNdvi(self):
+        """
+        Add a 'ndvi' band to the Cordoba image and calculate its value based
+        on other bands
+        The image is updated.
+        """
+
+        # Add the new band
+        self.bands["ndvi"] = \
+            numpy.zeros([self.height, self.width], numpy.float32)
+
+        # Variable to memorise eventual exceptions
+        raised_exc = None
+
+        # Loop on the pixels
         for y in range(self.height):
             for x in range(self.width):
 
-                # Composite the normalised bands
-                image[y][x][0] = self.bands["ndvi"][y][x] / max_val * 255.0
-                image[y][x][1] = image[y][x][0]
-                image[y][x][2] = image[y][x][0]
+                # Calculate the NDVI value
+                try:
+                    ndvi_value = \
+                        (self.bands["nir"][y][x] - self.bands["red"][y][x]) / \
+                        (self.bands["nir"][y][x] + self.bands["red"][y][x])
+                except Exception as exc:
+                    raised_exc = exc
+                    ndvi_value = 0.0
 
-        # Return the result image
-        return image
+                # Update the NDVI value
+                self.bands["ndvi"][y][x] = ndvi_value
+
+        # Inform the user if there has been exception
+        if raised_exc:
+            print(f"Exception raised during conversion:\n{raised_exc}")
+
 
 class CordobaDataPreprocessor:
     """
@@ -148,14 +251,103 @@ class CordobaDataPreprocessor:
         # Set the data source to Sentinel-2 by default
         self.data_source = CordobaDataSource.SENTINEL2
 
-        # Set the threshold for the cloud coverage to 10% by default
+        # Set the threshold for the cloud coverage to 25% by default
         # (percentage of image pixels; in [0.0, 100.0])
-        self.max_cloud_coverage = 10.0
+        self.max_cloud_coverage = 25.0
 
         # Resolution of the returned image (in meter per pixel)
         self.resolution = 30.0
 
-    def get_image(self, date: str, area: LongLatBBox) -> List[CordobaImage]:
+        # Verbose mode
+        self.flag_verbose = True
+
+        # Gaussian blur parameters (if radius==0, no blur)
+        self.gaussian_blur = {"radius": 3, "sigma": 0.5}
+
+    def select_source(self, source: CordobaDataSource):
+        """
+        Select a data source for the images.
+        source: the data source
+        Update the source and related parameters (resolution)
+        """
+        self.data_source = source
+        if source == CordobaDataSource.SENTINEL2:
+            # TODO:
+            # would like to use
+            # self.resolution = 10.0
+            # but it raises in cvtEEImageToCordobaImage
+            # ee.ee_exception.EEException: Computed value is too large.
+            self.resolution = 30.0
+        elif source == CordobaDataSource.LANDSAT8:
+            self.resolution = 30.0
+        elif source == CordobaDataSource.LANDSAT5:
+            self.resolution = 30.0
+
+    def get_ee_image(self, date: str, area_bounding: ee.Geometry.Rectangle) -> ee.Image:
+        """
+        Get the satellite image for a given date and area.
+        date: the date (eg. "2024-12-01")
+        area_bnding: the area of interest
+        Return the available ee.Image fully covering the area of interest
+        and nearest to the required date
+        """
+
+        # Get the relevant image collection according to the data source
+        if self.data_source == CordobaDataSource.SENTINEL2:
+          dataset = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+          dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+          dataset = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2')
+        else:
+          return None
+
+        # Filter the image collection over the area of interest
+        dataset = dataset.filterBounds(area_bounding)
+
+        # Filter the image collection to reject images with too many clouds
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            filter_cloud = \
+                ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', self.max_cloud_coverage)
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            filter_cloud = \
+                ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            filter_cloud = \
+                ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
+        else:
+          return None
+        dataset = dataset.filter(filter_cloud)
+
+        # Loop to search a date range around the required date which includes
+        # at least one image
+        if self.flag_verbose:
+            print("image acquisition...")
+        shift_day = 1
+        date_from = ee.Date(date).advance(-shift_day, "day");
+        date_to = ee.Date(date).advance(shift_day, "day");
+        dataset_range = dataset.filterDate(date_from, date_to)
+        while dataset_range.size().getInfo() == 0:
+            if self.flag_verbose:
+                print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()}")
+            shift_day += 5
+            date_from = ee.Date(date).advance(-shift_day, "day");
+            date_to = ee.Date(date).advance(shift_day, "day");
+            dataset_range = dataset.filterDate(date_from, date_to)
+        ee_image = dataset_range.first()
+
+        # Apply the remote preprocessing
+        if self.flag_verbose:
+            print("remote preprocessing...")
+        ee_image = self.preprocessGaussianBlur(ee_image)
+        ee_image = self.preprocessNdvi(ee_image)
+        ee_image = self.preprocessNdbi(ee_image)
+        ee_image = self.preprocessEvi(ee_image)
+
+        # Return the ee.Image
+        return ee_image
+
+    def get_image(self, date: str, area: LongLatBBox) -> CordobaImage:
         """
         Get the satellite image for a given date and area.
         date: the date (eg. "2024-12-01")
@@ -164,46 +356,60 @@ class CordobaDataPreprocessor:
         and nearest to the required date
         """
 
-        # Get the relevant image collection according to the data source
-        if self.data_source == CordobaDataSource.SENTINEL2:
-          dataset = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-        elif self.data_source == CordobaDataSource.LANDSAT8:
-          # TODO: find the ID for Landsat-8 image collection
-          # dataset = ee.ImageCollection('')
-          return []
-        else:
-          return []
-
-        # Filter the image collection over the area of interest
+        # Get the ee.Image
         area_bounding = area.toEERectangle()
-        dataset = dataset.filterBounds(area_bounding)
-
-        # Filter the image collection to reject images with too many clouds
-        filter_cloud = \
-            ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', self.max_cloud_coverage)
-        dataset = dataset.filter(filter_cloud)
-
-        # Loop to search a date range around the required date which includes
-        # at least one image
-        shift_day = 1
-        date_from = ee.Date(date).advance(-shift_day, "day");
-        date_to = ee.Date(date).advance(shift_day, "day");
-        dataset_range = dataset.filterDate(date_from, date_to)
-        while dataset_range.size().getInfo() == 0:
-            shift_day += 1
-            date_from = ee.Date(date).advance(-shift_day, "day");
-            date_to = ee.Date(date).advance(shift_day, "day");
-            dataset_range = dataset.filterDate(date_from, date_to)
+        ee_image = self.get_ee_image(date, area_bounding)
 
         # Convert the first available image into a CordobaImage
-        image = self.cvtEEImageToCordobaImage(
-          dataset_range.first(), area, area_bounding)
+        if self.flag_verbose:
+            print("converting to CordobaImage...")
+        image = self.cvtEEImageToCordobaImage(ee_image, area, area_bounding)
         
-        # Add the preprocessed bands
-        self.preprocessNdvi(image)
+        # Add the locally preprocessed bands
+        if self.flag_verbose:
+            print("local preprocessing...")
+        image.darkObjectCorrection()
 
         # Return the image
         return image
+
+    def get_registered_images(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
+        """
+        Get the satellite image for a given date and area.
+        dates: two dates (eg. ["2024-11-01", "2024-12-01"])
+        area: the area of interest
+        Return the available images fully covering the area of interest
+        and nearest to the required date, the second image is registered against
+        the first one
+        """
+
+        # Get the two ee.Image
+        area_bounding = area.toEERectangle()
+        ee_images = [
+            self.get_ee_image(dates[0], area_bounding),
+            self.get_ee_image(dates[1], area_bounding)]
+
+        # Apply registration
+        ee_images[1] = ee_images[1].register(
+            referenceImage=ee_images[0],
+            maxOffset=50.0,
+            patchWidth=100.0)
+
+        # Convert the ee.images into a CordobaImage
+        if self.flag_verbose:
+            print("converting to CordobaImage...")
+        images = [
+            self.cvtEEImageToCordobaImage(ee_images[0], area, area_bounding),
+            self.cvtEEImageToCordobaImage(ee_images[1], area, area_bounding)]
+        
+        # Add the locally preprocessed bands
+        if self.flag_verbose:
+            print("local preprocessing...")
+        images[0].darkObjectCorrection()
+        images[1].darkObjectCorrection()
+
+        # Return the images
+        return images
 
     def cvtEEImageToCordobaImage(self,
         ee_image: ee.Image, area: LongLatBBox,
@@ -214,6 +420,8 @@ class CordobaDataPreprocessor:
         area: the requested area as a LongLatBBox
         area_bounding: the requested area as a ee.Geometry.Rectangle
         Return a CordobaImage
+        TODO: I'm really  not convinced that's the correct way to do it, and
+        it's awfuly slow
         """
         
         # Get the acquisition date of the image
@@ -235,15 +443,44 @@ class CordobaDataPreprocessor:
           scale = self.resolution)
 
         # List of relevant bands ([lbl_CordobaImage, lbl_EE_Image])
-        # TODO switch according to data source
-        relevant_bands = [
-          ["latitude", "latitude"],
-          ["longitude", "longitude"],
-          ["red", "B4"],
-          ["green", "B3"],
-          ["blue", "B2"],
-          ["nir", "B8"]
-        ]
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            relevant_bands = [
+              ["latitude", "latitude"],
+              ["longitude", "longitude"],
+              ["red", "B4"],
+              ["green", "B3"],
+              ["blue", "B2"],
+              ["nir", "B8"],
+              ["ndvi", "ndvi"],
+              ["ndbi", "ndbi"],
+              ["evi", "evi"]
+            ]
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            relevant_bands = [
+              ["latitude", "latitude"],
+              ["longitude", "longitude"],
+              ["red", "SR_B4"],
+              ["green", "SR_B3"],
+              ["blue", "SR_B2"],
+              ["nir", "SR_B5"],
+              ["ndvi", "ndvi"],
+              ["ndbi", "ndbi"],
+              ["evi", "evi"]
+            ]
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            relevant_bands = [
+              ["latitude", "latitude"],
+              ["longitude", "longitude"],
+              ["red", "SR_B3"],
+              ["green", "SR_B2"],
+              ["blue", "SR_B1"],
+              ["nir", "SR_B4"],
+              ["ndvi", "ndvi"],
+              ["ndbi", "ndbi"],
+              ["evi", "evi"]
+            ]
+        else:
+          return None
 
         # Extract each relevant band as a numpy array
         data_bands = {}
@@ -289,28 +526,129 @@ class CordobaDataPreprocessor:
             # Update the pixel value for each relevant band in the
             # numpy arrays
             for band_lbl in relevant_bands:
-                image.bands[band_lbl[0]][y][x] = data_bands[band_lbl[0]][idx]
+                # TODO
+                # Different bands have different size array. Why ??
+                if idx < data_bands[band_lbl[0]].shape[0]:
+                    image.bands[band_lbl[0]][y][x] = data_bands[band_lbl[0]][idx]
 
         # Return the result image
         return image
         
-    def preprocessNdvi(self, image: CordobaImage):
+    def preprocessNdvi(self, image: ee.Image) -> ee.Image:
         """
-        Add a 'ndvi' band to the Cordoba image and calculate its value based
+        Add a 'ndvi' band to the ee.Image and calculate its value based
         on other bands
         image: the image to be preprocessed
-        The image is updated.
+        Return the preprocessed image.
         """
+        # Get the dictionary of needed bands according to the source
+        if self.flag_verbose:
+            print("NDVI...")
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            bands = {"NIR" : image.select("B8"), "RED" : image.select("B4")}
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            bands = {"NIR" : image.select("SR_B5"), "RED" : image.select("SR_B4")}
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            bands = {"NIR" : image.select("SR_B4"), "RED" : image.select("B3")}
+        else:
+          return image
 
-        # Add the new band
-        image.bands["ndvi"] = \
-            numpy.zeros([image.height, image.width], numpy.float32)
+        # Calculate the NDVI values
+        ndvi = \
+            image.expression("(NIR - RED) / (NIR + RED)", bands).rename("ndvi")
 
-        # Loop on the pixels
-        for y in range(image.height):
-            for x in range(image.width):
+        # Add the NDVI values to the image as a new band
+        return image.addBands(ndvi)
 
-                # Update the NDVI value
-                image.bands["ndvi"][y][x] = \
-                    (image.bands["nir"][y][x] - image.bands["red"][y][x]) / \
-                    (image.bands["nir"][y][x] + image.bands["red"][y][x])
+    def preprocessNdbi(self, image: ee.Image) -> ee.Image:
+        """
+        Add a 'ndbi' band to the ee.Image and calculate its value based
+        on other bands
+        image: the image to be preprocessed
+        Return the preprocessed image.
+        """
+        # Get the dictionary of needed bands according to the source
+        if self.flag_verbose:
+            print("NDBI...")
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            bands = {"NIR" : image.select("B8"), "SWIR" : image.select("B11")}
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            bands = {"NIR" : image.select("SR_B5"), "SWIR" : image.select("SR_B6")}
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            # No swir band
+            return image
+        else:
+          return image
+
+        # Calculate the NDBI values
+        ndbi = \
+            image.expression("(SWIR - NIR) / (SWIR + NIR)", bands).rename("ndbi")
+
+        # Add the NDBI values to the image as a new band
+        return image.addBands(ndbi)
+
+    def preprocessEvi(self, image: ee.Image) -> ee.Image:
+        """
+        Add a 'evi' band to the ee.Image and calculate its value based
+        on other bands
+        image: the image to be preprocessed
+        Return the preprocessed image.
+        """
+        # Get the dictionary of needed bands according to the source
+        if self.flag_verbose:
+            print("EVI...")
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            bands = {
+                "NIR" : image.select("B8"),
+                "RED" : image.select("B4"),
+                "BLUE" : image.select("B2")}
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            bands = {
+                "NIR" : image.select("SR_B5"),
+                "RED" : image.select("SR_B4"),
+                "BLUE" : image.select("SR_B2")}
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            bands = {
+                "NIR" : image.select("SR_B4"),
+                "RED" : image.select("SR_B3"),
+                "BLUE" : image.select("SR_B1")}
+        else:
+          return image
+
+        # Calculate the EVI values
+        evi = \
+            image.expression(
+            "2.5 * (NIR - RED) / (NIR + 6.0 * RED - 7.5 * BLUE + 1.0)",
+            bands).rename("evi")
+
+        # Add the EVI values to the image as a new band
+        return image.addBands(evi)
+
+    def preprocessGaussianBlur(self, image: ee.Image) -> ee.Image:
+        """
+        Add a gaussian blur to the ee.Image
+        image: the image to be preprocessed
+        Return the preprocessed image.
+        """
+        # If there is no blurring apply, simply return the image
+        if self.gaussian_blur["radius"] == 0:
+            return image
+
+        # Create burring gaussian kernel
+        if self.flag_verbose:
+            print(f"gaussian blur ({self.gaussian_blur['radius']}, {self.gaussian_blur['sigma']})...")
+        kernel = ee.Kernel.gaussian(
+          radius=self.gaussian_blur["radius"],
+          sigma=self.gaussian_blur["sigma"], 
+          units='pixels')
+
+        # Apply the kernel to relevant bands and return the result
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            relevant_bands = ["B4", "B3", "B2", "B8", "B11"]
+        elif self.data_source == CordobaDataSource.LANDSAT8:
+            relevant_bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "SR_B6"]
+        elif self.data_source == CordobaDataSource.LANDSAT5:
+            relevant_bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4"]
+        else:
+          return None
+        return image.select(relevant_bands, relevant_bands).convolve(kernel)

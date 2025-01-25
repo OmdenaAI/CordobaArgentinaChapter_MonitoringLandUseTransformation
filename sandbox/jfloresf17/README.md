@@ -35,13 +35,21 @@ The steps to generate the data are the following:
 3. Manual revision of the ROIs to discard the ones that are not corresponds to the ground truth (vectors of the shapefile).
 4. The final test dataset is divided in three parts: gt (ground truth), t1 (past year), and t2 (current year).
 
+![Sample of the test data](./assets/0101.png)
+
 ## GFCTestData.ipynb
-This notebook is planned to generate the test data using the data from [Global Forest Change](https://earthenginepartners.appspot.com/science-2013-global-forest/download_v1.7.html). Actually, the notebook is not finished!
+This notebook is planned to generate the test data using the data from [Global Forest Change](https://earthenginepartners.appspot.com/science-2013-global-forest/download_v1.7.html). Actually, the notebook is not finished.
+
+![Sample of the GFC test data](./assets/GFC.png)
 
 ## UnsupervisedTechniques.ipynb
 This notebook is used to apply unsupervised techniques to the test data generated in the DesmonteTestData.ipynb notebook. The techniques used are the following:
 1. MAD (Multivariate Alteration Detection) algorithm, based on the following [GEE tutorial](https://developers.google.com/earth-engine/tutorials/community/imad-tutorial-pt1).
 2. KMeans algorithm, using two clusters to separate the ROIs in two classes: deforestation and no deforestation (theorically).
+
+
+![Sample of the unsupervised techniques](./assets/MAD.png)
+
 
 ## utils.py
 This file contains the functions used in the DesmonteTestData.ipynb and UnsupervisedTechniques.ipynb notebooks.

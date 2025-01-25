@@ -9,6 +9,11 @@ from pyproj.aoi import AreaOfInterest
 from pyproj.database import query_utm_crs_info
 
 def get_credentials():
+    """
+    Get the credentials to access Google Earth Engine.
+    Returns:
+    ee.ServiceAccountCredentials: The credentials to access Google Earth Engine.
+    """
     try: 
         # Get the notebook directory
         NOTEBOOK_DIR = os.getcwd()

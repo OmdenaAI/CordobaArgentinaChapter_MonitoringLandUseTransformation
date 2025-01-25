@@ -48,6 +48,7 @@ data/processed/
 *.jpeg
 *.hdf
 *.nc
+*testData/
 
 # Environment variables
 .env

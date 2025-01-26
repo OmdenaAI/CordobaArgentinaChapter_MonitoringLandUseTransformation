@@ -83,3 +83,7 @@ preprocessing_service/sandbox/**/.ipynb_checkpoints
 preprocessing_service/sandbox/**/tmp
 preprocessing_service/sandbox/**/__pycache__ 
 .ipynb_checkpoints
+sandbox/baillehache/*
+!sandbox/baillehache/cordobaPredictor.py
+!sandbox/baillehache/cordobaDataPreprocessor.py
+!sandbox/baillehache/__main__.py

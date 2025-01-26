@@ -29,8 +29,8 @@ scikit-learn
 ## Input Data
 
 The code expects two satellite images:
-- `before.png`: Satellite image from the earlier time period
-- `after.png`: Satellite image from the later time period
+- `before.png`: Satellite image from the earlier time period. Size should be 512 x 512
+- `after.png`: Satellite image from the later time period. Size should be 512 x 512
 
 Images should be in either png or jpg format. We can tweak code to support GEOTIFF format.
 
@@ -83,3 +83,8 @@ python main.py
 
 - `Cleaned Change Map`:
    - Post-processed version of the change map to remove noise and refine boundaries.
+
+## Note
+- The shape of change mask is depends on the shape of inputs.
+- The input must be a gray scale image.
+- The algorithm can be optimized to get better result.

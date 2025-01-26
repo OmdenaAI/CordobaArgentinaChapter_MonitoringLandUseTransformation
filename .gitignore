@@ -48,6 +48,7 @@ data/processed/
 *.jpeg
 *.hdf
 *.nc
+*testData/
 
 # Environment variables
 .env
@@ -64,7 +65,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
+frontend/src/login/firebaseConfigs.tsx
 # Build directories
 dist/
 build/

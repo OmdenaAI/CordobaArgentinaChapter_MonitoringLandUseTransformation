@@ -1,12 +1,38 @@
-import React from 'react'
+// import React, { useState } from 'react';
 import { Link } from 'react-router-dom'
 import { Satellite, Map, BarChart2, Upload, Shield, Zap } from 'lucide-react'
+// import { useShowLogin } from '../../utils/navigation_utils';
 
 const WHATSAPP_NUMBER = '+5493513273358';
 
 export function LandingPage() {
+  
   return (
     <div className="min-h-screen">
+      {/* Top Navigation */}
+      <nav className="absolute top-0 left-0 w-full flex justify-between items-center px-6 py-4 z-30">
+        <div className="text-white text-lg font-semibold">
+          <Link to="/" className="hover:text-blue-300 transition-colors">
+            Altara Geospatial AI
+          </Link>
+        </div>
+        <div>
+          <Link
+            to="/login"
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+          >
+            Login
+          </Link>          
+          <span className="mx-2"></span> {/* Add a space between the buttons */}
+          <Link
+            to="/signup"
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+          >
+            Sign Up
+          </Link>
+        </div>
+        
+      </nav>
       {/* Hero Section - Now full viewport height */}
       <div className="relative h-screen">
         {/* Background Image */}
@@ -36,6 +62,8 @@ export function LandingPage() {
           <p className="mx-auto mt-6 max-w-2xl text-lg tracking-tight text-blue-100 text-center">
             Advanced satellite imagery analysis for monitoring land-use changes, deforestation, and urban expansion in Córdoba, Argentina.
           </p>
+          {/* Main user interactions */}
+          {/* Platform launch */}
           <div className="mt-10 flex justify-center gap-x-6">
             <Link
               to="/map"
@@ -43,6 +71,14 @@ export function LandingPage() {
             >
               Launch Platform
             </Link>
+            {/* Link to login page */}
+            <Link
+              to="/login" // Add the route to the login page
+              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+            >
+              Login
+            </Link>
+            {/* Reference to features section below */}
             <a
               href="#features"
               className="rounded-lg px-4 py-2.5 text-sm font-semibold text-blue-100 ring-1 ring-blue-100/20 hover:bg-white/10 transition-all duration-200"

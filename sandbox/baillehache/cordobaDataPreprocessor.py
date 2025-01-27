@@ -264,6 +264,14 @@ class CordobaDataPreprocessor:
         # Gaussian blur parameters (if radius==0, no blur)
         self.gaussian_blur = {"radius": 3, "sigma": 0.5}
 
+        # Step (in days) when searching an image around a given date
+        self.step_search_image = 5
+
+        # Minimum number of images to be used for the median composite (used to
+        # reduce artefacts in image by compositing several ones around the
+        # requested date)
+        self.nb_median_composite = 5
+
     def select_source(self, source: CordobaDataSource):
         """
         Select a data source for the images.
@@ -323,22 +331,45 @@ class CordobaDataPreprocessor:
         # at least one image
         if self.flag_verbose:
             print("image acquisition...")
+            sys.stdout.flush()
+
         shift_day = 1
         date_from = ee.Date(date).advance(-shift_day, "day");
         date_to = ee.Date(date).advance(shift_day, "day");
         dataset_range = dataset.filterDate(date_from, date_to)
-        while dataset_range.size().getInfo() == 0:
+        nb_try = 0
+        nb_max_try = 5
+        while dataset_range.size().getInfo() < self.nb_median_composite and nb_try < nb_max_try:
             if self.flag_verbose:
                 print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()}")
-            shift_day += 5
+                sys.stdout.flush()
+
+            shift_day += self.step_search_image
             date_from = ee.Date(date).advance(-shift_day, "day");
             date_to = ee.Date(date).advance(shift_day, "day");
             dataset_range = dataset.filterDate(date_from, date_to)
-        ee_image = dataset_range.first()
+            nb_try += 1
+        if nb_try >= nb_max_try:
+            return None
+
+        # Composite all images into a single one using the median of all values
+        # (don't know why but the .clip() is necessary, else we get a
+        # "Unable to compute bounds for geometry" in getDownloadUrl())
+        if self.flag_verbose:
+            print(f"median composite of {dataset_range.size().getInfo()} images...")
+            sys.stdout.flush()
+        ee_image = dataset_range.median().clip(area_bounding)
+        
+        # Image properties get lost through the composition, put them back
+        # by using those of the first image in the collection
+        # (not necessary, left for reference)
+        ee_image.copyProperties(
+            dataset_range.first(), dataset_range.first().propertyNames())
 
         # Apply the remote preprocessing
         if self.flag_verbose:
             print("remote preprocessing...")
+            sys.stdout.flush()
         ee_image = self.preprocessGaussianBlur(ee_image)
         ee_image = self.preprocessNdvi(ee_image)
         ee_image = self.preprocessNdbi(ee_image)
@@ -390,21 +421,42 @@ class CordobaDataPreprocessor:
             self.get_ee_image(dates[1], area_bounding)]
 
         # Apply registration
+        if self.flag_verbose:
+            print("registering images...")
+            sys.stdout.flush()
         ee_images[1] = ee_images[1].register(
             referenceImage=ee_images[0],
             maxOffset=50.0,
             patchWidth=100.0)
 
+        # Try to get the image acquisition date
+        try:
+            acquisition_dates = [
+                ee_images[0].date().format("yyyy-MM-dd HH:mm", "UTC").getInfo(),
+                ee_images[1].date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
+                ]
+        except:
+            # If the acquisition dates are not available, use the required
+            # dates instead
+            acquisition_dates = dates
+
         # Convert the ee.images into a CordobaImage
         if self.flag_verbose:
             print("converting to CordobaImage...")
+            sys.stdout.flush()
         images = [
-            self.cvtEEImageToCordobaImage(ee_images[0], area, area_bounding),
-            self.cvtEEImageToCordobaImage(ee_images[1], area, area_bounding)]
+            self.cvtEEImageToCordobaImage(
+                acquisition_dates[0], ee_images[0], area, area_bounding),
+            self.cvtEEImageToCordobaImage(
+                acquisition_dates[1], ee_images[1], area, area_bounding)
+            ]
+        if images[0] is None or images[1] is None:
+            return []
         
         # Add the locally preprocessed bands
         if self.flag_verbose:
             print("local preprocessing...")
+            sys.stdout.flush()
         images[0].darkObjectCorrection()
         images[1].darkObjectCorrection()
 

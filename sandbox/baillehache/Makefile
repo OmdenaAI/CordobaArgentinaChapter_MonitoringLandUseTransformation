@@ -9,4 +9,4 @@ video:
   -c:v libopenh264 -pix_fmt yuv420p Data/video.mp4
 
 dependencies:
-	pip install earthengine-api 
+	pip install earthengine-api

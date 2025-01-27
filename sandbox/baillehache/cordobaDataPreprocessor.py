@@ -238,6 +238,16 @@ class CordobaImage:
             print(f"Exception raised during conversion:\n{raised_exc}")
 
 
+# Helper function to discard clouds when calculating the median of several
+# images
+def mask_clouds(image: ee.Image) -> ee.Image:
+    qa = image.select('QA60')
+    cloud_bit_mask = 1 << 10  # Bit 10 represents clouds
+    cirrus_bit_mask = 1 << 11  # Bit 11 represents cirrus clouds
+    mask = qa.bitwiseAnd(cloud_bit_mask).eq(0).And(qa.bitwiseAnd(cirrus_bit_mask).eq(0))
+    return image.updateMask(mask)
+
+
 class CordobaDataPreprocessor:
     """
     Class implementing tasks of the team 'data preprocessing and analysis'
@@ -365,10 +375,12 @@ class CordobaDataPreprocessor:
         # Composite all images into a single one using the median of all values
         # (don't know why but the .clip() is necessary, else we get a
         # "Unable to compute bounds for geometry" in getDownloadUrl())
+        # To improve results use a mask to exclude clouds when calculating
+        # the median
         if self.flag_verbose:
             print(f"median composite of {dataset_range.size().getInfo()} images...")
             sys.stdout.flush()
-        ee_image = dataset_range.median().clip(area_bounding)
+        ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
         
         # Image properties get lost through the composition, put them back
         # by using those of the first image in the collection

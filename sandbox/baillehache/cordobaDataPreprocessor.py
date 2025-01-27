@@ -380,7 +380,11 @@ class CordobaDataPreprocessor:
         if self.flag_verbose:
             print(f"median composite of {dataset_range.size().getInfo()} images...")
             sys.stdout.flush()
-        ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
+        if self.data_source == CordobaDataSource.SENTINEL2:
+            ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
+        else:
+            # TODO: cloud mask for landsat
+            ee_image = dataset_range.median().clip(area_bounding)
         
         # Image properties get lost through the composition, put them back
         # by using those of the first image in the collection

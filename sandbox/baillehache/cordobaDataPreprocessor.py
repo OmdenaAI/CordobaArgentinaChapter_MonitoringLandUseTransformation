@@ -83,6 +83,13 @@ class CordobaImage:
         # dictionary value is a numpy array of the value of the band
         self.bands = {}
 
+        # Mean NDVI
+        # NDVI is in [-1,1], the higher the more vegetation, 0 is considered as
+        # no vegetation, <0 suggests water.
+        # Can be used to filter out images without vegetation:
+        # if self.mean_ndvi < 0.2: no vegetation
+        self.mean_ndvi = 0.0
+
     def __str__(self):
         """
         String representation
@@ -519,10 +526,6 @@ class CordobaDataPreprocessor:
         select_ee_image = \
             ee_image.select(relevant_bands[1], relevant_bands[0])
 
-        # Project the image using mercator projection and scale it
-        #projected_ee_image = select_ee_image.reproject(
-        #  crs=ee.Projection("EPSG:3395"), scale=self.resolution)
-
         # Convert the bands data to a numpy array
         # (it's possible to also get GeoTIFF format here)
         # Apply a mercator projection to convert the data to a 2D array
@@ -557,6 +560,12 @@ class CordobaDataPreprocessor:
             image.bands[relevant_bands[0][band_idx]] = \
                 data_bands[:, :][relevant_bands[0][band_idx]]
 
+        # Set the mean ndvi of the image
+        image.mean_ndvi = self.get_mean_ndvi(ee_image, area_bounding)
+        if self.flag_verbose:
+            print(f"mean ndvi: {image.mean_ndvi}")
+            sys.stdout.flush()
+
         # Return the result image
         return image
         
@@ -586,6 +595,17 @@ class CordobaDataPreprocessor:
 
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)
+
+    def get_mean_ndvi(self, image: ee.Image, area_bounding: ee.Geometry.Rectangle) -> float:
+        """
+        Calculate the mean value of the 'ndvi' band of an ee.Image
+        image: the image to be preprocessed
+        area_bounding: the bounding area
+        Return the value.
+        """
+        mean_ndvi = image.reduceRegion(
+            reducer=ee.Reducer.mean(), geometry=area_bounding).get('ndvi').getInfo()
+        return mean_ndvi
 
     def preprocessNdbi(self, image: ee.Image) -> ee.Image:
         """

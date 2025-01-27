@@ -4,6 +4,9 @@ import numpy
 # Install the Earth Engine Python API with
 # pip install earthengine-api
 import ee
+import requests
+import io
+import sys
 
 class CordobaDataSource(Enum):
     """
@@ -390,15 +393,22 @@ class CordobaDataPreprocessor:
         # Get the ee.Image
         area_bounding = area.toEERectangle()
         ee_image = self.get_ee_image(date, area_bounding)
+        if ee_image is None:
+            if self.flag_verbose:
+                print("couldn't get the ee.Image...")
+                sys.stdout.flush()
+            return None
 
         # Convert the first available image into a CordobaImage
         if self.flag_verbose:
             print("converting to CordobaImage...")
+            sys.stdout.flush()
         image = self.cvtEEImageToCordobaImage(ee_image, area, area_bounding)
         
         # Add the locally preprocessed bands
         if self.flag_verbose:
             print("local preprocessing...")
+            sys.stdout.flush()
         image.darkObjectCorrection()
 
         # Return the image
@@ -464,124 +474,80 @@ class CordobaDataPreprocessor:
         return images
 
     def cvtEEImageToCordobaImage(self,
-        ee_image: ee.Image, area: LongLatBBox,
+        date: str, ee_image: ee.Image, area: LongLatBBox,
         area_bounding: ee.Geometry.Rectangle) -> CordobaImage:
         """
         Convert an ee.Image to a CordobaImage
+        date: date of the image (eg. "2024-11-01")
         eeImage: the image to convert
         area: the requested area as a LongLatBBox
         area_bounding: the requested area as a ee.Geometry.Rectangle
         Return a CordobaImage
-        TODO: I'm really  not convinced that's the correct way to do it, and
-        it's awfuly slow
         """
         
-        # Get the acquisition date of the image
-        date = ee_image.date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
-
-        # The image returned from filterBounds() contains entire swaths,
-        # clip it to get only the area of interest
-        clipped_ee_image = ee_image.clip(area_bounding)
-
-        # Create an ee.Image with all bands from the original image and two
-        # new bands containing longitude and latitude information
-        raw_data = ee.Image.pixelLonLat().addBands(clipped_ee_image)
-
-        # Reduce the raw data at the required resolution
-        raw_data = raw_data.reduceRegion(
-          reducer = ee.Reducer.toList(),
-          geometry = area_bounding,
-          maxPixels = 1e8,
-          scale = self.resolution)
-
-        # List of relevant bands ([lbl_CordobaImage, lbl_EE_Image])
+        # List of relevant bands ([[lbl_CordobaImage], [lbl_EE_Image]])
         if self.data_source == CordobaDataSource.SENTINEL2:
             relevant_bands = [
-              ["latitude", "latitude"],
-              ["longitude", "longitude"],
-              ["red", "B4"],
-              ["green", "B3"],
-              ["blue", "B2"],
-              ["nir", "B8"],
-              ["ndvi", "ndvi"],
-              ["ndbi", "ndbi"],
-              ["evi", "evi"]
+                ["red", "green", "blue", "nir", "ndvi", "ndbi", "evi"],
+                ["B4", "B3", "B2", "B8", "ndvi", "ndbi", "evi"]
             ]
         elif self.data_source == CordobaDataSource.LANDSAT8:
             relevant_bands = [
-              ["latitude", "latitude"],
-              ["longitude", "longitude"],
-              ["red", "SR_B4"],
-              ["green", "SR_B3"],
-              ["blue", "SR_B2"],
-              ["nir", "SR_B5"],
-              ["ndvi", "ndvi"],
-              ["ndbi", "ndbi"],
-              ["evi", "evi"]
+                ["red", "green", "blue", "nir", "ndvi", "ndbi", "evi"],
+                ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "ndvi", "ndbi", "evi"]
             ]
         elif self.data_source == CordobaDataSource.LANDSAT5:
             relevant_bands = [
-              ["latitude", "latitude"],
-              ["longitude", "longitude"],
-              ["red", "SR_B3"],
-              ["green", "SR_B2"],
-              ["blue", "SR_B1"],
-              ["nir", "SR_B4"],
-              ["ndvi", "ndvi"],
-              ["ndbi", "ndbi"],
-              ["evi", "evi"]
+                ["red", "green", "blue", "nir", "ndvi", "ndbi", "evi"],
+                ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "ndvi", "ndbi", "evi"]
             ]
         else:
-          return None
+            return None
 
-        # Extract each relevant band as a numpy array
-        data_bands = {}
-        for band_lbl in relevant_bands:
-            data_bands[band_lbl[0]] = \
-              numpy.array((ee.Array(raw_data.get(band_lbl[1])).getInfo()))
+        # Select only the relevant bands and rename them
+        select_ee_image = \
+            ee_image.select(relevant_bands[1], relevant_bands[0])
 
-        # Get the list of unique latitude and longitude coordinates available
-        unique_lats = numpy.unique(data_bands["latitude"])
-        unique_lons = numpy.unique(data_bands["longitude"])
+        # Project the image using mercator projection and scale it
+        #projected_ee_image = select_ee_image.reproject(
+        #  crs=ee.Projection("EPSG:3395"), scale=self.resolution)
 
-        # Get the range of latitude and longitude
-        lat_min = unique_lats.min()
-        lat_max = unique_lats.max()
-        lon_min = unique_lons.min()
-        lon_max = unique_lons.max()
+        # Convert the bands data to a numpy array
+        # (it's possible to also get GeoTIFF format here)
+        # Apply a mercator projection to convert the data to a 2D array
+        if self.flag_verbose:
+            print("download...")
+            sys.stdout.flush()
+        try:
+            url = select_ee_image.getDownloadUrl({
+                'bands': relevant_bands[0],
+                'region': area_bounding,
+                'format': 'NPY',
+                'crs': ee.Projection("EPSG:3395"),
+                'scale': self.resolution
+            })
+            response = requests.get(url)
+            data_bands = numpy.load(io.BytesIO(response.content))
+        except:
+            if self.flag_verbose:
+                print("Image data download failed...")
+                sys.stdout.flush()
+            return None
 
         # Get the dimensions of the image
-        nb_col = len(unique_lons)    
-        nb_row = len(unique_lats)
+        nb_col = data_bands.shape[1]
+        nb_row = data_bands.shape[0]
 
         # Create the CordobaImage
         image = CordobaImage(date, area, self.resolution, nb_col, nb_row)
 
-        # Initialise the result numpy array for each relevant band
-        for band_lbl in relevant_bands:
-            image.bands[band_lbl[0]] = \
-                numpy.zeros([nb_row, nb_col], numpy.float32)
-        
-        # Loop on the data (all bands have same amount of data, use 'latitude'
-        # to get the number of data point)
-        for idx in range(len(data_bands["latitude"])):
-
-            # Convert the (longitude, latitude) of the data to a (x,y) pixel
-            # coordinate in the image
-            x = nb_col - 1 - round(
-              (lon_max - data_bands["longitude"][idx]) / (lon_max - lon_min) *
-              (nb_col - 1))
-            y = round(
-              (lat_max - data_bands["latitude"][idx]) / (lat_max - lat_min) *
-              (nb_row - 1))
-
-            # Update the pixel value for each relevant band in the
-            # numpy arrays
-            for band_lbl in relevant_bands:
-                # TODO
-                # Different bands have different size array. Why ??
-                if idx < data_bands[band_lbl[0]].shape[0]:
-                    image.bands[band_lbl[0]][y][x] = data_bands[band_lbl[0]][idx]
+        # Split the numpy array per band
+        for band_idx in range(len(relevant_bands[0])):
+            if self.flag_verbose:
+                print(f"{relevant_bands[0][band_idx]}")
+                sys.stdout.flush()
+            image.bands[relevant_bands[0][band_idx]] = \
+                data_bands[:, :][relevant_bands[0][band_idx]]
 
         # Return the result image
         return image
@@ -596,6 +562,7 @@ class CordobaDataPreprocessor:
         # Get the dictionary of needed bands according to the source
         if self.flag_verbose:
             print("NDVI...")
+            sys.stdout.flush()
         if self.data_source == CordobaDataSource.SENTINEL2:
             bands = {"NIR" : image.select("B8"), "RED" : image.select("B4")}
         elif self.data_source == CordobaDataSource.LANDSAT8:
@@ -622,6 +589,7 @@ class CordobaDataPreprocessor:
         # Get the dictionary of needed bands according to the source
         if self.flag_verbose:
             print("NDBI...")
+            sys.stdout.flush()
         if self.data_source == CordobaDataSource.SENTINEL2:
             bands = {"NIR" : image.select("B8"), "SWIR" : image.select("B11")}
         elif self.data_source == CordobaDataSource.LANDSAT8:
@@ -649,6 +617,7 @@ class CordobaDataPreprocessor:
         # Get the dictionary of needed bands according to the source
         if self.flag_verbose:
             print("EVI...")
+            sys.stdout.flush()
         if self.data_source == CordobaDataSource.SENTINEL2:
             bands = {
                 "NIR" : image.select("B8"),
@@ -689,6 +658,7 @@ class CordobaDataPreprocessor:
         # Create burring gaussian kernel
         if self.flag_verbose:
             print(f"gaussian blur ({self.gaussian_blur['radius']}, {self.gaussian_blur['sigma']})...")
+            sys.stdout.flush()
         kernel = ee.Kernel.gaussian(
           radius=self.gaussian_blur["radius"],
           sigma=self.gaussian_blur["sigma"], 

@@ -417,58 +417,69 @@ class CordobaDataPreprocessor:
     def get_registered_images(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
         """
         Get the satellite image for a given date and area.
-        dates: two dates (eg. ["2024-11-01", "2024-12-01"])
+        dates: list of dates (eg. ["2024-11-01", "2024-12-01"])
         area: the area of interest
         Return the available images fully covering the area of interest
         and nearest to the required date, the second image is registered against
         the first one
         """
 
-        # Get the two ee.Image
+        # Array of result CordobaImage
+        images = []
+
+        # Convert the area of interest to a ee.GeometryRectangle
         area_bounding = area.toEERectangle()
-        ee_images = [
-            self.get_ee_image(dates[0], area_bounding),
-            self.get_ee_image(dates[1], area_bounding)]
 
-        # Apply registration
-        if self.flag_verbose:
-            print("registering images...")
-            sys.stdout.flush()
-        ee_images[1] = ee_images[1].register(
-            referenceImage=ee_images[0],
-            maxOffset=50.0,
-            patchWidth=100.0)
+        # Reference image for registration
+        ee_image_ref = None
 
-        # Try to get the image acquisition date
-        try:
-            acquisition_dates = [
-                ee_images[0].date().format("yyyy-MM-dd HH:mm", "UTC").getInfo(),
-                ee_images[1].date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
-                ]
-        except:
-            # If the acquisition dates are not available, use the required
-            # dates instead
-            acquisition_dates = dates
+        # Loop on the requested date
+        for i_date, date in enumerate(dates):
+            ee_image = self.get_ee_image(date, area_bounding)
+            # If we could get the image
+            if ee_image is not None:
+                # If there is a reference image
+                if ee_image_ref is not None:
+                    if self.flag_verbose:
+                        print("registering images...")
+                        sys.stdout.flush()
+                    # TODO parameter maxoffset
+                    ee_image = ee_image.register(
+                        referenceImage=ee_image_ref,
+                        maxOffset=50.0,
+                        patchWidth=100.0)
+                # Else, we have no reference image yet
+                else:
+                    # Set the current image as the reference one
+                    ee_image_ref = ee_image
 
-        # Convert the ee.images into a CordobaImage
-        if self.flag_verbose:
-            print("converting to CordobaImage...")
-            sys.stdout.flush()
-        images = [
-            self.cvtEEImageToCordobaImage(
-                acquisition_dates[0], ee_images[0], area, area_bounding),
-            self.cvtEEImageToCordobaImage(
-                acquisition_dates[1], ee_images[1], area, area_bounding)
-            ]
-        if images[0] is None or images[1] is None:
-            return []
-        
-        # Add the locally preprocessed bands
-        if self.flag_verbose:
-            print("local preprocessing...")
-            sys.stdout.flush()
-        images[0].darkObjectCorrection()
-        images[1].darkObjectCorrection()
+                # Try to get the acquisition date
+                try:
+                    acquisition_date = \
+                        ee_image.date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
+                except:
+                    # If the acquisition date is not available, use the required
+                    # date instead
+                    acquisition_date = date
+
+            # Convert the ee.image into a CordobaImage
+            if self.flag_verbose:
+                print("converting to CordobaImage...")
+                sys.stdout.flush()
+            image = \
+                self.cvtEEImageToCordobaImage(
+                    acquisition_date, ee_image, area, area_bounding)
+
+            # If we could get a CordobaImage
+            if image is not None:
+                # Add the locally preprocessed bands
+                if self.flag_verbose:
+                    print("local preprocessing...")
+                    sys.stdout.flush()
+                image.darkObjectCorrection()
+
+                # Add the image to the list of result images
+                images.append(image)
 
         # Return the images
         return images
@@ -543,9 +554,6 @@ class CordobaDataPreprocessor:
 
         # Split the numpy array per band
         for band_idx in range(len(relevant_bands[0])):
-            if self.flag_verbose:
-                print(f"{relevant_bands[0][band_idx]}")
-                sys.stdout.flush()
             image.bands[relevant_bands[0][band_idx]] = \
                 data_bands[:, :][relevant_bands[0][band_idx]]
 

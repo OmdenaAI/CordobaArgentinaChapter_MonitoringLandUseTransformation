@@ -36,36 +36,46 @@ def test_analyse_period(areas, area_lbls, days):
 
             # Save the RGB bands to a png file
             rgb = images[i_image].toRGB(gamma=0.66)
-            path_rgb = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_rgb.png"
+            path_rgb = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{images[i_image].date}_rgb.png"
             print(f"save image to {path_rgb}")
             Image.fromarray(rgb).save(path_rgb)
 
             # Save the NDVI band to a png file
             ndvi = images[i_image].toNDVI()
-            path_ndvi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_ndvi.png"
+            path_ndvi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{images[i_image].date}_ndvi.png"
             print(f"save image to {path_ndvi}")
             Image.fromarray(ndvi).save(path_ndvi)
 
             # Save the EVI band to a png file
             evi = images[i_image].toEVI()
-            path_evi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_evi.png"
+            path_evi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{images[i_image].date}_evi.png"
             print(f"save image to {path_evi}")
             Image.fromarray(evi).save(path_evi)
 
             # Save the NDBI band to a png file
             ndbi = images[i_image].toNDBI()
-            path_ndbi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_ndbi.png"
+            path_ndbi = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{images[i_image].date}_ndbi.png"
             print(f"save image to {path_ndbi}")
             Image.fromarray(ndbi).save(path_ndbi)
 
             # From the second image
             if i_image > 0:
                 # If the NDVI index is high enough
-                if images[i_image].mean_ndvi > 0.2:
+                if images[i_image].mean_ndvi > 0.0:
+
                     # Predict the deforestation relative to the previous image
-                    deforest_image = predictor.getPcaKMeanClustering(
+                    # using PCA/KMeans
+                    deforest_image = predictor.predictPcaKMeanClustering(
                         [images[i_image-1], images[i_image]])
-                    path_deforest = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{days[i_image]}_deforest.png"
+                    path_deforest = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_pca_kmeans.png"
+                    print(f"save image to {path_deforest}")
+                    Image.fromarray(deforest_image).save(path_deforest)
+
+                    # Predict the deforestation relative to the previous image
+                    # using FCCDN
+                    deforest_image = predictor.predictFCCDN(
+                        [images[i_image-1], images[i_image]])
+                    path_deforest = f"./Data/{preprocessor.data_source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_fccdn.png"
                     print(f"save image to {path_deforest}")
                     Image.fromarray(deforest_image).save(path_deforest)
 
@@ -80,13 +90,11 @@ all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpi
 areas = [area_calmayo, area_las_penas, area_villa_alpina]
 area_lbls = ["calmayo", "las_penas", "villa_alpina"]
 
-areas = [area_villa_alpina]
-area_lbls = ["villa_alpina"]
-
 # Days of interests
 # Recommended time windows:
 # Summer Time: 21 Dec - 21 March
 # Winter Time: 21 June - 21 Sept
 days = ["2019-08-01", "2020-08-01", "2021-08-01"]
+#days = ["2023-12-01", "2024-12-01"]
 
-test_analyse_period(areas, area_lbls, days[:1])
+test_analyse_period(areas, area_lbls, days)

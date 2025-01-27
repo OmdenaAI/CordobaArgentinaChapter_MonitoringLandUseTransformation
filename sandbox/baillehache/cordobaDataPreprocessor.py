@@ -455,6 +455,7 @@ class CordobaDataPreprocessor:
         # Loop on the requested date
         for i_date, date in enumerate(dates):
             ee_image = self.get_ee_image(date, area_bounding)
+            image = None
             # If we could get the image
             if ee_image is not None:
                 # If there is a reference image
@@ -481,13 +482,13 @@ class CordobaDataPreprocessor:
                     # date instead
                     acquisition_date = date
 
-            # Convert the ee.image into a CordobaImage
-            if self.flag_verbose:
-                print("converting to CordobaImage...")
-                sys.stdout.flush()
-            image = \
-                self.cvtEEImageToCordobaImage(
-                    acquisition_date, ee_image, area, area_bounding)
+                # Convert the ee.image into a CordobaImage
+                if self.flag_verbose:
+                    print("converting to CordobaImage...")
+                    sys.stdout.flush()
+                image = \
+                    self.cvtEEImageToCordobaImage(
+                        acquisition_date, ee_image, area, area_bounding)
 
             # If we could get a CordobaImage
             if image is not None:

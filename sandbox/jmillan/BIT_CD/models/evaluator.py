@@ -7,6 +7,7 @@ from misc.metric_tool import ConfuseMatrixMeter
 from misc.logger_tool import Logger
 from utils import de_norm
 import utils
+from misc.imutils import save_image
 
 
 # Decide which device we want to run on
@@ -52,6 +53,11 @@ class CDEvaluator():
         self.epoch_id = 0
         self.checkpoint_dir = args.checkpoint_dir
         self.vis_dir = args.vis_dir
+        
+        # Add predictions directory
+        data_root = os.path.dirname(args.data_name)
+        self.pred_dir = os.path.join(data_root, 'data/predictions')
+        os.makedirs(self.pred_dir, exist_ok=True)
 
         # check and create model dir
         if os.path.exists(self.checkpoint_dir) is False:
@@ -65,7 +71,7 @@ class CDEvaluator():
         if os.path.exists(os.path.join(self.checkpoint_dir, checkpoint_name)):
             self.logger.write('loading last checkpoint...\n')
             # load the entire checkpoint
-            checkpoint = torch.load(os.path.join(self.checkpoint_dir, checkpoint_name), map_location=self.device)
+            checkpoint = torch.load(os.path.join(self.checkpoint_dir, checkpoint_name), map_location=self.device, weights_only=True)
 
             self.net_G.load_state_dict(checkpoint['model_G_state_dict'])
 
@@ -152,6 +158,15 @@ class CDEvaluator():
         img_in1 = batch['A'].to(self.device)
         img_in2 = batch['B'].to(self.device)
         self.G_pred = self.net_G(img_in1, img_in2)
+        
+        # Save prediction
+        preds = self._visualize_pred()
+        name = batch['name']
+        for i, pred in enumerate(preds):
+            file_name = os.path.join(
+                self.pred_dir, name[i].replace('.jpg', '.png'))
+            pred = pred[0].cpu().numpy()
+            save_image(pred, file_name)
 
     def eval_models(self,checkpoint_name='best_ckpt.pt'):
 

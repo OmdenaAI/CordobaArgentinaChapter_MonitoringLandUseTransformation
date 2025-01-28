@@ -51,15 +51,23 @@ The prediction results will be saved in `samples/predict`.
 
 ## To work on your own data
 
+First, add the appropriate prefix to your image files using the `add_prefix.py` script:
+
+(This will name all files in the folder with the same prefix, so make sure to separate them if you need them to have different prefixes)
+```shell
+# Add prefix to test files  
+python add_prefix.py --folder path/to/folder --prefix "prefix"
+```
+
+Then you can create the list files by running the `create_list.py` script:
+```shell
+python create_list.py --path path/to/data --split train/test/val
+```
+
 Update the evaluation script `eval.sh` to point to your data directory.
 This will make predictions and evaluate on your own data.
 Set the data_name variable to "other" so it will point to the `data/` directory.
 Make sure the data is in the `data/` directory and follows the specified structure [shown below](#data-structure).
-
-You can create the list files by running the `create_list.py` script.
-```shell
-python create_list.py --path path/to/data --split train/test/val
-```
 
 The input images should be RGB images of 256x256 pixels.
 

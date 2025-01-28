@@ -34,7 +34,7 @@ class CDEvaluator():
         if os.path.exists(os.path.join(self.checkpoint_dir, checkpoint_name)):
             # load the entire checkpoint
             checkpoint = torch.load(os.path.join(self.checkpoint_dir, checkpoint_name),
-                                    map_location=self.device)
+                                    map_location=self.device, weights_only=True)
 
             self.net_G.load_state_dict(checkpoint['model_G_state_dict'])
             self.net_G.to(self.device)

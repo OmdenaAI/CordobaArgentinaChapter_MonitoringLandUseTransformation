@@ -73,7 +73,7 @@ def find_change_map(image1, image2):
     diff_image = abs(image1 - image2)
     diff_image = (diff_image - diff_image.min()) / (diff_image.max() - diff_image.min()) * 255
     diff_image = diff_image.astype(np.uint8)
-    imageio.imwrite('./data/diff.jpg', diff_image)
+    
     print('\nBoth images resized to ', new_size)
 
     vector_set, mean_vec = find_vector_set(diff_image, new_size)

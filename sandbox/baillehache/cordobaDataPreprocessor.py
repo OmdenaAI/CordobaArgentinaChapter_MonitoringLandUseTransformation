@@ -18,6 +18,8 @@ class CordobaDataSource(Enum):
     LANDSAT8 = 1
     # https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LT05_C02_T1_L2
     LANDSAT5 = 2
+    # Automatic selection of the source sentinel2 > landsat8 > landasat5
+    AUTO = 3
 
     def __str__(self):
         """
@@ -78,6 +80,7 @@ class CordobaImage:
         self.resolution = resolution
         self.width = width
         self.height = height
+        self.source = None
 
         # Contains image data per band, dictionary key is the band name,
         # dictionary value is a numpy array of the value of the band
@@ -287,11 +290,6 @@ class CordobaDataPreprocessor:
         # Step (in days) when searching an image around a given date
         self.step_search_image = 5
 
-        # Minimum number of images to be used for the median composite (used to
-        # reduce artefacts in image by compositing several ones around the
-        # requested date)
-        self.nb_median_composite = 5
-
     def select_source(self, source: CordobaDataSource):
         """
         Select a data source for the images.
@@ -310,12 +308,15 @@ class CordobaDataPreprocessor:
             self.resolution = 30.0
         elif source == CordobaDataSource.LANDSAT5:
             self.resolution = 30.0
+        else:
+            self.resolution = 30.0
 
-    def get_ee_image(self, date: str, area: LongLatBBox) -> ee.Image:
+    def get_ee_image(self, date: str, area: LongLatBBox, source: CordobaDataSource) -> ee.Image:
         """
         Get the satellite image for a given date and area.
         date: the date (eg. "2024-12-01")
         area: the area of interest
+        source: the data source to use
         Return the a composite image of the area with preprocessing.
         """
 
@@ -323,11 +324,11 @@ class CordobaDataPreprocessor:
         area_bounding = area.to_ee_rectangle()
 
         # Get the relevant image collection according to the data source
-        if self.data_source == CordobaDataSource.SENTINEL2:
+        if source == CordobaDataSource.SENTINEL2:
           dataset = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
-        elif self.data_source == CordobaDataSource.LANDSAT8:
+        elif source == CordobaDataSource.LANDSAT8:
           dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
-        elif self.data_source == CordobaDataSource.LANDSAT5:
+        elif source == CordobaDataSource.LANDSAT5:
           dataset = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2')
         else:
           return None
@@ -336,13 +337,13 @@ class CordobaDataPreprocessor:
         dataset = dataset.filterBounds(area_bounding)
 
         # Filter the image collection to reject images with too many clouds
-        if self.data_source == CordobaDataSource.SENTINEL2:
+        if source == CordobaDataSource.SENTINEL2:
             filter_cloud = \
                 ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', self.max_cloud_coverage)
-        elif self.data_source == CordobaDataSource.LANDSAT8:
+        elif source == CordobaDataSource.LANDSAT8:
             filter_cloud = \
                 ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
-        elif self.data_source == CordobaDataSource.LANDSAT5:
+        elif source == CordobaDataSource.LANDSAT5:
             filter_cloud = \
                 ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
         else:
@@ -361,7 +362,7 @@ class CordobaDataPreprocessor:
         dataset_range = dataset.filterDate(date_from, date_to)
         nb_try = 0
         nb_max_try = 5
-        while dataset_range.size().getInfo() < self.nb_median_composite and nb_try < nb_max_try:
+        while dataset_range.size().getInfo() == 0 and nb_try < nb_max_try:
             if self.flag_verbose:
                 print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()}")
                 sys.stdout.flush()
@@ -382,7 +383,7 @@ class CordobaDataPreprocessor:
         if self.flag_verbose:
             print(f"median composite of {dataset_range.size().getInfo()} images...")
             sys.stdout.flush()
-        if self.data_source == CordobaDataSource.SENTINEL2:
+        if source == CordobaDataSource.SENTINEL2:
             ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
         else:
             # TODO: cloud mask for landsat
@@ -393,6 +394,10 @@ class CordobaDataPreprocessor:
         # (not necessary, left for reference)
         ee_image.copyProperties(
             dataset_range.first(), dataset_range.first().propertyNames())
+
+        # Rename the bands to have common names independently of the source
+        ee_image = ee_image.select(
+            self.get_ee_bands_name(source, False), self.get_bands_name(False))
 
         # Return the ee.Image
         return ee_image
@@ -467,11 +472,29 @@ class CordobaDataPreprocessor:
         date: date (e.g. "2024-11-01")
         area: the area of interest
         ee_image_ref: reference image, if None then no registration occurs
-        Return the registered image.
+        Return the registered image and its source.
         """
 
-        # Get the ee image
-        ee_image = self.get_ee_image(date, area)
+        # Variable to memorise the actual source of the image (may vary when
+        # in auto mode)
+        actual_source = self.data_source
+
+        # Get the ee image according to the source
+        # If the source is AUTO, try the sources in order of priority until
+        # we find an image
+        if self.data_source == CordobaDataSource.AUTO:
+            ee_image = None
+            sources = [CordobaDataSource.SENTINEL2, CordobaDataSource.LANDSAT8, CordobaDataSource.LANDSAT5]
+            idx_source = 0
+            while ee_image is None and idx_source < len(sources):
+                ee_image = self.get_ee_image(date, area, sources[idx_source])
+                if ee_image is not None:
+                      actual_source = sources[idx_source]
+                      print(f"data source: {sources[idx_source]}")
+                idx_source += 1
+        else:
+            print(f"data source: {self.data_source}")
+            ee_image = self.get_ee_image(date, area, self.data_source)
 
         # If we could get the image and there is a reference image
         if ee_image is not None and ee_image_ref is not None:
@@ -493,7 +516,7 @@ class CordobaDataPreprocessor:
             #    self.radiometric_registration(ee_image_ref, ee_image, area)
 
         # Return the image
-        return ee_image
+        return ee_image, actual_source
 
     def get_satellite_data(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
         """
@@ -513,7 +536,8 @@ class CordobaDataPreprocessor:
         for i_date, date in enumerate(dates):
 
             # Get the ee image for the date
-            ee_image = self.get_ee_image_registered(date, area, ee_image_ref)
+            ee_image, actual_source = \
+                self.get_ee_image_registered(date, area, ee_image_ref)
 
             # If we could get the ee.Image
             if ee_image is not None:
@@ -542,30 +566,42 @@ class CordobaDataPreprocessor:
                 # If we could get a CordobaImage, add it to the list of result
                 # images
                 if image is not None:
+                    image.source = actual_source
                     images.append(image)
 
         # Return the images
         return images
 
-    def get_ee_bands_name(self) -> List[str]:
+    def get_ee_bands_name(self, source: CordobaDataSource, include_processed: bool) -> List[str]:
         """
         Return the list of relevant bands name in the ee.Image according to the
         current data source.
+        source: the data source
+        include_processed: if true, include the processed bands
         """
-        if self.data_source == CordobaDataSource.SENTINEL2:
-            return ["B4", "B3", "B2", "B8", "ndvi", "ndbi", "evi"]
-        elif self.data_source == CordobaDataSource.LANDSAT8:
-            return ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "ndvi", "ndbi", "evi"]
-        elif self.data_source == CordobaDataSource.LANDSAT5:
-            return ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "ndvi", "ndbi", "evi"]
+        bands = []
+        if source == CordobaDataSource.SENTINEL2:
+            bands = ["B4", "B3", "B2", "B8", "B11", "ndvi", "ndbi", "evi"]
+        elif source == CordobaDataSource.LANDSAT8:
+            bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "SR_B6", "ndvi", "ndbi", "evi"]
+        elif source == CordobaDataSource.LANDSAT5:
+            # No swir band, used the nir band instead
+            bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "SR_B4", "ndvi", "ndbi", "evi"]
+        if include_processed:
+            return bands
         else:
-            return []
+            return bands[:5]
 
-    def get_bands_name(self) -> List[str]:
+    def get_bands_name(self, include_processed: bool) -> List[str]:
         """
         Return the list of bands name.
+        include_processed: if true, include the processed bands
         """
-        return ["red", "green", "blue", "nir", "ndvi", "ndbi", "evi"]
+        bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi"]
+        if include_processed:
+            return bands
+        else:
+            return bands[:5]
 
     def cvt_ee_image_to_cordoba_image(self,
         date: str, ee_image: ee.Image, area: LongLatBBox) -> CordobaImage:
@@ -589,19 +625,15 @@ class CordobaDataPreprocessor:
             # date instead
             acquisition_date = date
         
-        # Select only the relevant bands and rename them
-        ee_bands_name = self.get_ee_bands_name()
-        bands_name = self.get_bands_name()
-        select_ee_image = ee_image.select(ee_bands_name, bands_name)
-
         # Convert the bands data to a numpy array
         # (it's possible to also get GeoTIFF format here)
         # Apply a mercator projection to convert the data to a 2D array
         if self.flag_verbose:
             print("download...")
             sys.stdout.flush()
+        bands_name = self.get_bands_name(True)
         try:
-            url = select_ee_image.getDownloadUrl({
+            url = ee_image.getDownloadUrl({
                 'bands': bands_name,
                 'region': area_bounding,
                 'format': 'NPY',
@@ -650,22 +682,14 @@ class CordobaDataPreprocessor:
         image: the image to be preprocessed
         Return the preprocessed image.
         """
-        # Get the dictionary of needed bands according to the source
         if self.flag_verbose:
             print("NDVI...")
             sys.stdout.flush()
-        if self.data_source == CordobaDataSource.SENTINEL2:
-            bands = {"NIR" : image.select("B8"), "RED" : image.select("B4")}
-        elif self.data_source == CordobaDataSource.LANDSAT8:
-            bands = {"NIR" : image.select("SR_B5"), "RED" : image.select("SR_B4")}
-        elif self.data_source == CordobaDataSource.LANDSAT5:
-            bands = {"NIR" : image.select("SR_B4"), "RED" : image.select("B3")}
-        else:
-          return image
 
         # Calculate the NDVI values
+        bands = {"nir" : image.select("nir"), "red" : image.select("red")}
         ndvi = \
-            image.expression("(NIR - RED) / (NIR + RED)", bands).rename("ndvi")
+            image.expression("(nir - red) / (nir + red)", bands).rename("ndvi")
 
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)
@@ -688,23 +712,11 @@ class CordobaDataPreprocessor:
         image: the image to be preprocessed
         Return the preprocessed image.
         """
-        # Get the dictionary of needed bands according to the source
-        if self.flag_verbose:
-            print("NDBI...")
-            sys.stdout.flush()
-        if self.data_source == CordobaDataSource.SENTINEL2:
-            bands = {"NIR" : image.select("B8"), "SWIR" : image.select("B11")}
-        elif self.data_source == CordobaDataSource.LANDSAT8:
-            bands = {"NIR" : image.select("SR_B5"), "SWIR" : image.select("SR_B6")}
-        elif self.data_source == CordobaDataSource.LANDSAT5:
-            # No swir band
-            return image
-        else:
-          return image
 
         # Calculate the NDBI values
+        bands = {"nir" : image.select("nir"), "swir" : image.select("swir")}
         ndbi = \
-            image.expression("(SWIR - NIR) / (SWIR + NIR)", bands).rename("ndbi")
+            image.expression("(swir - nir) / (swir + nir)", bands).rename("ndbi")
 
         # Add the NDBI values to the image as a new band
         return image.addBands(ndbi)
@@ -716,32 +728,15 @@ class CordobaDataPreprocessor:
         image: the image to be preprocessed
         Return the preprocessed image.
         """
-        # Get the dictionary of needed bands according to the source
         if self.flag_verbose:
             print("EVI...")
             sys.stdout.flush()
-        if self.data_source == CordobaDataSource.SENTINEL2:
-            bands = {
-                "NIR" : image.select("B8"),
-                "RED" : image.select("B4"),
-                "BLUE" : image.select("B2")}
-        elif self.data_source == CordobaDataSource.LANDSAT8:
-            bands = {
-                "NIR" : image.select("SR_B5"),
-                "RED" : image.select("SR_B4"),
-                "BLUE" : image.select("SR_B2")}
-        elif self.data_source == CordobaDataSource.LANDSAT5:
-            bands = {
-                "NIR" : image.select("SR_B4"),
-                "RED" : image.select("SR_B3"),
-                "BLUE" : image.select("SR_B1")}
-        else:
-          return image
 
         # Calculate the EVI values
+        bands = {"nir" : image.select("nir"), "red" : image.select("red"), "blue" : image.select("blue")}
         evi = \
             image.expression(
-            "2.5 * (NIR - RED) / (NIR + 6.0 * RED - 7.5 * BLUE + 1.0)",
+            "2.5 * (nir - red) / (nir + 6.0 * red - 7.5 * blue + 1.0)",
             bands).rename("evi")
 
         # Add the EVI values to the image as a new band
@@ -767,12 +762,5 @@ class CordobaDataPreprocessor:
           units='pixels')
 
         # Apply the kernel to relevant bands and return the result
-        if self.data_source == CordobaDataSource.SENTINEL2:
-            relevant_bands = ["B4", "B3", "B2", "B8", "B11"]
-        elif self.data_source == CordobaDataSource.LANDSAT8:
-            relevant_bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "SR_B6"]
-        elif self.data_source == CordobaDataSource.LANDSAT5:
-            relevant_bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4"]
-        else:
-          return None
+        relevant_bands = self.get_bands_name(False)
         return image.select(relevant_bands, relevant_bands).convolve(kernel)

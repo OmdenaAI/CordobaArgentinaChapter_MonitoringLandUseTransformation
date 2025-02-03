@@ -42,7 +42,7 @@ class LongLatBBox:
         self.lat_from = lat_from
         self.lat_to = lat_to
 
-    def toEERectangle(self) -> ee.Geometry.Rectangle:
+    def to_ee_rectangle(self) -> ee.Geometry.Rectangle:
         """
         Convert a LongLatBBox to a ee.Geometry.Rectangle
         """
@@ -96,7 +96,7 @@ class CordobaImage:
         """
         return f"acquisition date: {self.date}, area: {self.area}, resolution: {self.resolution}m/px, width: {self.width}px, height: {self.height}px"
 
-    def toRGB(self, gamma=1.0) -> numpy.array:
+    def to_rgb(self, gamma=1.0) -> numpy.array:
         """
         Convert a CordobaImage into a RGB array
         Return the composite of red, green, blue bands as a numpy array.
@@ -124,7 +124,7 @@ class CordobaImage:
         # Return the result image
         return image
 
-    def toGreyScale(self, band) -> numpy.array:
+    def to_grey_scale(self, band) -> numpy.array:
         """
         Convert a CordobaImage into a numpy array
         band: the band to use
@@ -164,31 +164,31 @@ class CordobaImage:
         # Return the result image
         return image
 
-    def toNDVI(self) -> numpy.array:
+    def to_ndvi(self) -> numpy.array:
         """
         Convert a CordobaImage into a NDVI array
         Return the NDVI as a numpy array.
         Pixel values in [0,255], 3 channels. NDVI band normalised.
         """
-        return self.toGreyScale("ndvi")
+        return self.to_grey_scale("ndvi")
 
-    def toNDBI(self) -> numpy.array:
+    def to_ndbi(self) -> numpy.array:
         """
         Convert a CordobaImage into a NDBI array
         Return the NDVI as a numpy array.
         Pixel values in [0,255], 3 channels. NDBI band normalised.
         """
-        return self.toGreyScale("ndbi")
+        return self.to_grey_scale("ndbi")
 
-    def toEVI(self) -> numpy.array:
+    def to_evi(self) -> numpy.array:
         """
         Convert a CordobaImage into a EVI array
         Return the EVI as a numpy array.
         Pixel values in [0,255], 3 channels. EVI band normalised.
         """
-        return self.toGreyScale("evi")
+        return self.to_grey_scale("evi")
 
-    def darkObjectCorrection(self):
+    def dark_object_correction(self):
         """
         Apply dark object correction to  ee.Image
         image: the image to be preprocessed
@@ -203,7 +203,7 @@ class CordobaImage:
             # Substract the minimum value to all values in the band
             self.bands[band] -= min_value
 
-    def addNdvi(self):
+    def add_ndvi(self):
         """
         Add a 'ndvi' band to the Cordoba image and calculate its value based
         on other bands
@@ -303,7 +303,7 @@ class CordobaDataPreprocessor:
             # TODO:
             # would like to use
             # self.resolution = 10.0
-            # but it raises in cvtEEImageToCordobaImage
+            # but it raises in cvt_ee_image_to_cordoba_image
             # ee.ee_exception.EEException: Computed value is too large.
             self.resolution = 30.0
         elif source == CordobaDataSource.LANDSAT8:
@@ -311,14 +311,16 @@ class CordobaDataPreprocessor:
         elif source == CordobaDataSource.LANDSAT5:
             self.resolution = 30.0
 
-    def get_ee_image(self, date: str, area_bounding: ee.Geometry.Rectangle) -> ee.Image:
+    def get_ee_image(self, date: str, area: LongLatBBox) -> ee.Image:
         """
         Get the satellite image for a given date and area.
         date: the date (eg. "2024-12-01")
-        area_bnding: the area of interest
-        Return the available ee.Image fully covering the area of interest
-        and nearest to the required date
+        area: the area of interest
+        Return the a composite image of the area with preprocessing.
         """
+
+        # Convert the area of interest to a ee.GeometryRectangle
+        area_bounding = area.to_ee_rectangle()
 
         # Get the relevant image collection according to the data source
         if self.data_source == CordobaDataSource.SENTINEL2:
@@ -396,129 +398,104 @@ class CordobaDataPreprocessor:
         if self.flag_verbose:
             print("remote preprocessing...")
             sys.stdout.flush()
-        ee_image = self.preprocessGaussianBlur(ee_image)
-        ee_image = self.preprocessNdvi(ee_image)
-        ee_image = self.preprocessNdbi(ee_image)
-        ee_image = self.preprocessEvi(ee_image)
+        ee_image = self.preprocess_gaussian_blur(ee_image)
+        ee_image = self.preprocess_ndvi(ee_image)
+        ee_image = self.preprocess_ndbi(ee_image)
+        ee_image = self.preprocess_evi(ee_image)
 
         # Return the ee.Image
         return ee_image
 
-    def get_image(self, date: str, area: LongLatBBox) -> CordobaImage:
+    def get_ee_image_registered(self, date: str, area: LongLatBBox, ee_image_ref: ee.Image) -> ee.Image:
         """
-        Get the satellite image for a given date and area.
-        date: the date (eg. "2024-12-01")
+        Get the satellite image for a given date and area and register it
+        against a reference image.
+        date: date (e.g. "2024-11-01")
         area: the area of interest
-        Return the available image fully covering the area of interest
-        and nearest to the required date
+        ee_image_ref: reference image, if None then no registration occurs
+        Return the registered image.
         """
 
-        # Get the ee.Image
-        area_bounding = area.toEERectangle()
-        ee_image = self.get_ee_image(date, area_bounding)
-        if ee_image is None:
-            if self.flag_verbose:
-                print("couldn't get the ee.Image...")
-                sys.stdout.flush()
-            return None
+        # Get the ee image
+        ee_image = self.get_ee_image(date, area)
 
-        # Convert the first available image into a CordobaImage
-        if self.flag_verbose:
-            print("converting to CordobaImage...")
-            sys.stdout.flush()
-        image = self.cvtEEImageToCordobaImage(ee_image, area, area_bounding)
-        
-        # Add the locally preprocessed bands
-        if self.flag_verbose:
-            print("local preprocessing...")
-            sys.stdout.flush()
-        image.darkObjectCorrection()
+        # If we could get the image and there is a reference image
+        if ee_image is not None and ee_image_ref is not None:
+            if self.flag_verbose:
+                print("registering images...")
+                sys.stdout.flush()
+            # Geometry registration
+            ee_image = ee_image.register(
+                referenceImage=ee_image_ref,
+                maxOffset=50.0,
+                patchWidth=100.0)
+            # Radiometric registration
+            # TODO
 
         # Return the image
-        return image
+        return ee_image
 
-    def get_registered_images(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
+    def get_satellite_data(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
         """
-        Get the satellite image for a given date and area.
+        Get the satellite images for an area and a list of dates
         dates: list of dates (eg. ["2024-11-01", "2024-12-01"])
         area: the area of interest
-        Return the available images fully covering the area of interest
-        and nearest to the required date, the second image is registered against
-        the first one
+        Return the available images fully covering the area of interest for
+        each date.
         """
-
         # Array of result CordobaImage
         images = []
 
-        # Convert the area of interest to a ee.GeometryRectangle
-        area_bounding = area.toEERectangle()
-
-        # Reference image for registration
+        # Reference image for registration (initially none)
         ee_image_ref = None
 
-        # Loop on the requested date
+        # Loop on the requested dates
         for i_date, date in enumerate(dates):
-            ee_image = self.get_ee_image(date, area_bounding)
-            image = None
-            # If we could get the image
-            if ee_image is not None:
-                # If there is a reference image
-                if ee_image_ref is not None:
-                    if self.flag_verbose:
-                        print("registering images...")
-                        sys.stdout.flush()
-                    # TODO parameter maxoffset
-                    ee_image = ee_image.register(
-                        referenceImage=ee_image_ref,
-                        maxOffset=50.0,
-                        patchWidth=100.0)
-                # Else, we have no reference image yet
-                else:
-                    # Set the current image as the reference one
-                    ee_image_ref = ee_image
 
-                # Try to get the acquisition date
-                try:
-                    acquisition_date = \
-                        ee_image.date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
-                except:
-                    # If the acquisition date is not available, use the required
-                    # date instead
-                    acquisition_date = date
+            # Get the ee image for the date
+            ee_image = self.get_ee_image_registered(date, area, ee_image_ref)
 
-                # Convert the ee.image into a CordobaImage
-                if self.flag_verbose:
-                    print("converting to CordobaImage...")
-                    sys.stdout.flush()
-                image = \
-                    self.cvtEEImageToCordobaImage(
-                        acquisition_date, ee_image, area, area_bounding)
+            # If we have no reference image yet
+            if ee_image_ref is None:
+                # Set the current image as the reference one
+                ee_image_ref = ee_image
 
-            # If we could get a CordobaImage
+            # Convert the ee.image into a CordobaImage
+            if self.flag_verbose:
+                print("converting to CordobaImage...")
+                sys.stdout.flush()
+            image = \
+                self.cvt_ee_image_to_cordoba_image(date, ee_image, area)
+
+            # If we could get a CordobaImage, add it to the list of result images
             if image is not None:
-                # Add the locally preprocessed bands
-                if self.flag_verbose:
-                    print("local preprocessing...")
-                    sys.stdout.flush()
-                image.darkObjectCorrection()
-
-                # Add the image to the list of result images
                 images.append(image)
 
         # Return the images
         return images
+        
 
-    def cvtEEImageToCordobaImage(self,
-        date: str, ee_image: ee.Image, area: LongLatBBox,
-        area_bounding: ee.Geometry.Rectangle) -> CordobaImage:
+    def cvt_ee_image_to_cordoba_image(self,
+        date: str, ee_image: ee.Image, area: LongLatBBox) -> CordobaImage:
         """
         Convert an ee.Image to a CordobaImage
         date: date of the image (eg. "2024-11-01")
         eeImage: the image to convert
         area: the requested area as a LongLatBBox
-        area_bounding: the requested area as a ee.Geometry.Rectangle
         Return a CordobaImage
         """
+
+        # Convert the area of interest to a ee.GeometryRectangle
+        area_bounding = area.to_ee_rectangle()
+
+        # Try to get the acquisition date
+        try:
+            acquisition_date = \
+                ee_image.date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
+        except:
+            # If the acquisition date is not available, use the required
+            # date instead
+            acquisition_date = date
         
         # List of relevant bands ([[lbl_CordobaImage], [lbl_EE_Image]])
         if self.data_source == CordobaDataSource.SENTINEL2:
@@ -570,7 +547,7 @@ class CordobaDataPreprocessor:
         nb_row = data_bands.shape[0]
 
         # Create the CordobaImage
-        image = CordobaImage(date, area, self.resolution, nb_col, nb_row)
+        image = CordobaImage(acquisition_date, area, self.resolution, nb_col, nb_row)
 
         # Split the numpy array per band
         for band_idx in range(len(relevant_bands[0])):
@@ -583,10 +560,16 @@ class CordobaDataPreprocessor:
             print(f"mean ndvi: {image.mean_ndvi}")
             sys.stdout.flush()
 
+        # Apply dark object correction
+        if self.flag_verbose:
+            print("dark object correction...")
+            sys.stdout.flush()
+        image.dark_object_correction()
+
         # Return the result image
         return image
         
-    def preprocessNdvi(self, image: ee.Image) -> ee.Image:
+    def preprocess_ndvi(self, image: ee.Image) -> ee.Image:
         """
         Add a 'ndvi' band to the ee.Image and calculate its value based
         on other bands
@@ -624,7 +607,7 @@ class CordobaDataPreprocessor:
             reducer=ee.Reducer.mean(), geometry=area_bounding).get('ndvi').getInfo()
         return mean_ndvi
 
-    def preprocessNdbi(self, image: ee.Image) -> ee.Image:
+    def preprocess_ndbi(self, image: ee.Image) -> ee.Image:
         """
         Add a 'ndbi' band to the ee.Image and calculate its value based
         on other bands
@@ -652,7 +635,7 @@ class CordobaDataPreprocessor:
         # Add the NDBI values to the image as a new band
         return image.addBands(ndbi)
 
-    def preprocessEvi(self, image: ee.Image) -> ee.Image:
+    def preprocess_evi(self, image: ee.Image) -> ee.Image:
         """
         Add a 'evi' band to the ee.Image and calculate its value based
         on other bands
@@ -690,7 +673,7 @@ class CordobaDataPreprocessor:
         # Add the EVI values to the image as a new band
         return image.addBands(evi)
 
-    def preprocessGaussianBlur(self, image: ee.Image) -> ee.Image:
+    def preprocess_gaussian_blur(self, image: ee.Image) -> ee.Image:
         """
         Add a gaussian blur to the ee.Image
         image: the image to be preprocessed

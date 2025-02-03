@@ -380,14 +380,17 @@ class CordobaDataPreprocessor:
         # "Unable to compute bounds for geometry" in getDownloadUrl())
         # To improve results use a mask to exclude clouds when calculating
         # the median
-        if self.flag_verbose:
-            print(f"median composite of {dataset_range.size().getInfo()} images...")
-            sys.stdout.flush()
-        if source == CordobaDataSource.SENTINEL2:
-            ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
+        if dataset_range.size().getInfo() > 1:
+            if self.flag_verbose:
+                print(f"median composite of {dataset_range.size().getInfo()} images...")
+                sys.stdout.flush()
+            if source == CordobaDataSource.SENTINEL2:
+                ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
+            else:
+                # TODO: cloud mask for landsat
+                ee_image = dataset_range.median().clip(area_bounding)
         else:
-            # TODO: cloud mask for landsat
-            ee_image = dataset_range.median().clip(area_bounding)
+            ee_image = dataset_range.first().clip(area_bounding)
         
         # Image properties get lost through the composition, put them back
         # by using those of the first image in the collection
@@ -703,6 +706,9 @@ class CordobaDataPreprocessor:
         """
         mean_ndvi = image.reduceRegion(
             reducer=ee.Reducer.mean(), geometry=area_bounding).get('ndvi').getInfo()
+        # Sometime returns None, don't know why, in doubt return 1.0
+        if mean_ndvi is None:
+            mean_ndvi = 1.0
         return mean_ndvi
 
     def preprocess_ndbi(self, image: ee.Image) -> ee.Image:

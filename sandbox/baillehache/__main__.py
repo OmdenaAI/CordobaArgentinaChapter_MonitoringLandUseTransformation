@@ -74,13 +74,12 @@ def test_analyse_period(areas, area_lbls, days):
 
                     # Predict the deforestation relative to the previous image
                     # using FCCDN
-                    """
                     deforest_image = predictor.predictFCCDN(
                         [images[i_image-1], images[i_image]])
                     path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_fccdn.png"
                     print(f"save image to {path_deforest}")
                     Image.fromarray(deforest_image).save(path_deforest)
-                    """
+
 
 # Areas of interest
 area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
@@ -88,12 +87,15 @@ area_los_medanitos = LongLatBBox(-65.7, -65.6, -31.6, -31.5)
 area_calmayo = LongLatBBox(-64.53518510984365, -64.36758169478006, -32.09793491720308, -31.98599080824592)
 area_las_penas = LongLatBBox(-64.19504913677835, -63.92899759153784, -30.67255559541076, -30.43974550819874)
 area_villa_alpina = LongLatBBox(-64.8501456212574, -64.70773302600543, -32.06252532553296, -31.93373503424498)
-all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina]
-all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina"]
+area_peru_deforest_01 = LongLatBBox(-75.085, -75.035, -8.295, -8.245)
+area_chaco_deforest_01 = LongLatBBox(-61.15,-61.05,-21.8,-21.7)
+area_chaco_deforest_02 = LongLatBBox(-62.28,-62.15,-21.8,-21.7)
+all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina, area_peru_deforest_01, area_chaco_deforest_01, area_chaco_deforest_02]
+all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina", "peru_deforest_01", "chaco_deforest_01", "chaco_deforest_02"]
 #areas = [area_calmayo, area_las_penas, area_villa_alpina]
 #area_lbls = ["calmayo", "las_penas", "villa_alpina"]
-areas = [area_calmayo]
-area_lbls = ["calmayo"]
+areas = [area_chaco_deforest_02]
+area_lbls = ["chaco_deforest_02"]
 
 # Days of interests
 # Recommended time windows:
@@ -101,5 +103,8 @@ area_lbls = ["calmayo"]
 # Winter Time: 21 June - 21 Sept
 #days = ["2019-08-01", "2020-08-01", "2021-08-01"]
 days = ["2014-12-01", "2024-12-01"]
+days_peru_deforest_01 = ["2015-08-04", "2015-09-10"]
+days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
+days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
 
-test_analyse_period(areas, area_lbls, days)
+test_analyse_period(areas, area_lbls, days_chaco_deforest_02)

@@ -1,3 +1,0 @@
-[submodule "sandbox/jmillan/land_cover_classification_unet"]
-	path = sandbox/jmillan/land_cover_classification_unet
-	url = https://github.com/JuliMillan/land_cover_classification_unet.git

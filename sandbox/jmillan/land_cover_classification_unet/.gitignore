@@ -1,0 +1,7 @@
+data
+data/
+data1
+data1/
+*/__pycache__
+metrics.txt
+.ipynb_checkpoints/*

@@ -83,6 +83,21 @@ Queue-Service
 |   redis.conf
 |   README.md
 |
++---virtual-machine
+|   +---src
+|   |   appliance-import-1.jpg
+|   |   appliance-import-2.jpg
+|   |   appliance-import-3.jpg
+|   |   appliance-import-4.jpg
+|   |   appliance-import-5.jpg
+|   |   appliance-import-6.jpg
+|   |   appliance-import-7.jpg
+|   |   appliance-import-8.jpg
+|   |   appliance-import-9.jpg
+|   |   appliance-import-10.jpg
+|   |
+|   README.md
+|
 |---README.md
 ```
 
@@ -91,12 +106,14 @@ Queue-Service
 ## Setup
 
 ### Environment Details
-- **Demo**: The demo runs on a Virtual Machine using **Ubuntu 24.04** with **Docker 27.5.1** (build 9f9e405) and **Docker Compose 2.32.4**. Please note, earlier Docker versions are not available on Ubuntu 24.04. For installation details, refer to [this guide](docker/README.md).
+- **Demo**: The demo runs on a Virtual Machine using **Ubuntu 24.04**. If you want to run the machine in your own environment, you can check the Virtual MAchine Tutorial [here](queue_service\virtual-machine\README.md)
+
+- **Docker 27.5.1** (build 9f9e405) and **Docker Compose 2.32.4** were installed on the Virtual Machine. Please note, earlier Docker versions are not available on Ubuntu 24.04. For installation details, refer to [this guide](docker/README.md).
   
 - **Resource Allocation**: The machine has been provisioned with resources similar to a **t4g.micro** AWS EC2 instance.
 
 ### Service Setup
-The service is orchestrated using **Docker Compose** and is driven by a single `docker-compose.yaml` file located in the [redis](redis) directory. This file starts by setting up a custom Docker network for the service.
+The service is orchestrated using **Docker Compose** and is driven by a single `docker-compose.yaml` file located in the [redis](redis) directory. Before running the compose file, you need to setup a custom Docker network for the service.
 
 ```bash
 docker network create queue-network
@@ -106,5 +123,5 @@ docker network create queue-network
 - **Redis**: Deployed using a pre-built image from Docker Hub.
 - **Flower**: Also deployed from pre-built image pulled from Docker Hub, with custom settings provided via docker-compose.
 - **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile` and environment variables found in their respective directories. 
-- The `docker-compose.yaml` file in the **redis** directory links everything together and ensures smooth orchestration.
+- The `docker-compose.yaml` file in the **Redis** directory links everything together and ensures smooth orchestration.
 

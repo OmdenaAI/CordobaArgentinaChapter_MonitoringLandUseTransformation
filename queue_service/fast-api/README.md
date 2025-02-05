@@ -1,4 +1,4 @@
-# FastAPI App
+# FastAPI Instance
 
 ## Requirements
 

@@ -83,9 +83,10 @@ class CordobaPredictor:
         normalize = T.Normalize(mean=mean_value, std=std_value)
 
         # Input images (needs to be 1024x1024 for FCCDN)
-        pre = images[0].toRGB()
+        pre = images[0].to_rgb()
+        original_shape = pre.shape
         pre = cv2.resize(pre, (1024, 1024)) 
-        post = images[1].toRGB()
+        post = images[1].to_rgb()
         post = cv2.resize(post, (1024, 1024)) 
         
         # Normalize and convert to tensor
@@ -98,4 +99,5 @@ class CordobaPredictor:
         # Process outputs
         out = torch.round(torch.sigmoid(pred[0])).cpu().detach().numpy()
         out = (out[0, 0] * 255).astype(numpy.uint8)
+        out = cv2.resize(out, [original_shape[1], original_shape[0]])
         return out

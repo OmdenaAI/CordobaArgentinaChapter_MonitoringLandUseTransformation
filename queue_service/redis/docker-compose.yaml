@@ -1,0 +1,77 @@
+services:
+  redis:
+    image: redis:latest
+    container_name: redis-instance
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/etc/redis/redis.conf
+    networks:
+      - queue-network
+    env_file:
+      - .env
+
+  celery:
+    build:
+      context: ../celery
+      dockerfile: Dockerfile
+    container_name: celery-app
+    depends_on:
+      - redis
+    networks:
+      - queue-network
+    env_file:
+      - .env
+
+
+  flower:
+      image: mher/flower
+      container_name: flower-monitor
+      env_file: 
+        - .env
+      command: >
+        celery 
+        --broker=$CELERY_BROKER_URL 
+        --result-backend=$CELERY_RESULT_BACKEND
+        flower 
+        --port=5555 
+        --persistent=True
+        --db=/data/flower.db
+      volumes:
+        - flower-data:/data
+      ports:
+        - "5555:5555"
+      depends_on:
+        - redis
+        - celery
+      networks:
+        - queue-network
+
+
+  fastapi:
+    build:
+      context: ../fast-api
+      dockerfile: Dockerfile
+    container_name: fastapi-app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    networks:
+      - queue-network
+    depends_on:
+      - redis
+      - celery
+    env_file:
+      - .env
+
+volumes:
+  redis-data:
+    driver: local
+  flower-data:
+    driver: local
+
+networks:
+  queue-network:
+    external: true

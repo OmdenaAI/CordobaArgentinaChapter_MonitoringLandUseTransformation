@@ -91,3 +91,6 @@ sandbox/baillehache/*
 !sandbox/baillehache/cordobaPredictor.py
 !sandbox/baillehache/cordobaDataPreprocessor.py
 !sandbox/baillehache/__main__.py
+
+# Allow VM tutorial images
+!queue-service/virtual-machine/src/*.jpg

@@ -4,9 +4,10 @@ services:
     container_name: redis-instance
     ports:
       - "6379:6379"
-    command: ["sh", "-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
+    command: ["redis-server", "/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - redis-data:/data
+      - ./redis.conf:/etc/redis/redis.conf
     networks:
       - queue-network
     env_file:
@@ -23,6 +24,31 @@ services:
       - queue-network
     env_file:
       - .env
+
+
+  flower:
+      image: mher/flower
+      container_name: flower-monitor
+      env_file: 
+        - .env
+      command: >
+        celery 
+        --broker=$CELERY_BROKER_URL 
+        --result-backend=$CELERY_RESULT_BACKEND
+        flower 
+        --port=5555 
+        --persistent=True
+        --db=/data/flower.db
+      volumes:
+        - flower-data:/data
+      ports:
+        - "5555:5555"
+      depends_on:
+        - redis
+        - celery
+      networks:
+        - queue-network
+
 
   fastapi:
     build:
@@ -42,6 +68,8 @@ services:
 
 volumes:
   redis-data:
+    driver: local
+  flower-data:
     driver: local
 
 networks:

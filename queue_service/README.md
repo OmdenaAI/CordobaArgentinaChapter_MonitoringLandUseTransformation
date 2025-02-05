@@ -80,6 +80,7 @@ Queue-Service
 +---redis
 |   .env
 |   docker-compose.yaml
+|   redis.conf
 |   README.md
 |
 |---README.md
@@ -103,5 +104,7 @@ docker network create queue-network
 
 ### Deployment
 - **Redis**: Deployed using a pre-built image from Docker Hub.
-- **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile` and environment variables found in their respective directories. The `docker-compose.yaml` file in the **redis** directory links everything together and ensures smooth orchestration.
+- **Flower**: Also deployed from pre-built image pulled from Docker Hub, with custom settings provided via docker-compose.
+- **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile` and environment variables found in their respective directories. 
+- The `docker-compose.yaml` file in the **redis** directory links everything together and ensures smooth orchestration.
 

@@ -50,11 +50,13 @@ data/processed/
 *.hdf
 *.nc
 *testData/
+*gfc/
 
 # Environment variables
 .env
 .env.local
 .env.*.local
+*.json
 
 # Logs
 logs/

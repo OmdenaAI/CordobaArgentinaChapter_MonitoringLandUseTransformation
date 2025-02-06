@@ -24,6 +24,7 @@ graph TB;
         CeleryWorkers
         Flower
         FastAPI
+        MiniO
     end
     
     subgraph CeleryWorkers[Celery Workers]
@@ -36,19 +37,25 @@ graph TB;
     end
 
     subgraph Redis[Redis Instance]
-        RedisBroker@{ shape: cyl, label: "Tasks Broker - DB 0" }
-        RedisBackend@{ shape: cyl, label: "Tasks Results - DB 1" }
+        RedisBroker@{ shape: cyl, label: "🛢️ Tasks Broker - DB 0" }
+        RedisBackend@{ shape: cyl, label: "🛢️ Tasks Results - DB 1" }
     end
 
     subgraph FastAPI[FastAPI Instance]
         API["🌍 FastAPI App"]
     end
 
-    Worker1 & WorkerN --->|Stores Results In| RedisBackend
-    Worker1 & WorkerN --->|Monitors Data from| FlowerUI
-    RedisBackend --->|Fetches Results From | API
-    API --->|Publishes to| RedisBroker 
-    RedisBroker --->|Fetches Tasks From| Worker1 & WorkerN  
+    subgraph MiniO[MiniO Instance]
+      QueueBucket["🧺 Queue Bucket"]
+    end
+
+    CeleryWorkers --->|Stores Results In| RedisBackend
+    CeleryWorkers --->|Monitors Data from| Flower
+    RedisBackend --->|Fetches Results From | FastAPI
+    CeleryWorkers <--->|Open/Saves files| MiniO
+    FastAPI <--->|Open/Saves files| MiniO
+    FastAPI --->|Publishes to| RedisBroker 
+    RedisBroker --->|Fetches Tasks From| CeleryWorkers  
 
 
 ```
@@ -148,7 +155,8 @@ docker network create queue-network
 
 ### Deployment
 - **Redis**: Deployed using a pre-built image from Docker Hub.
+- **MiniO**: Simulating AWS S3 instance. Deployed from pre-built image from Docker Hub.
 - **Flower**: Also deployed from pre-built image pulled from Docker Hub, with custom settings provided via docker-compose.
 - **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile` and environment variables found in their respective directories. 
-- The `docker-compose.yaml` file in the **Redis** directory links everything together and ensures smooth orchestration.
+- The `docker-compose.yaml` and `.env` files in the **Redis** directory links everything together and ensures smooth orchestration.
 

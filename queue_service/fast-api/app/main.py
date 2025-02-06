@@ -13,9 +13,21 @@ app = FastAPI(title="Land Use Change Detection API",
     description="API for Land Use Change Detection",
     version="0.1.0"
 )
+
+
+@app.get("/health")
+async def health_check() -> HealthCheckResponse:
+    """
+    Basic health check endpoint to verify the API is running.
+    """
+    return {"status": "healthy", "service": "land-use-change-api"}
+     
         
 @app.post("/test")
 async def test_endpoint(data: NumberToSquare) -> TaskIDSchema:
+    """
+    Simple task to test the API.
+    """
     try:
         # Use send_task to call the Celery task dynamically
         task = celery_app.send_task("tasks.square_number", args=[data.number])

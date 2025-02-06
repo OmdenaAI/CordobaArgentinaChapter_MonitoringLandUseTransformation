@@ -22,12 +22,17 @@ graph TB;
     subgraph Network[Queue Service Network]
         Redis
         CeleryWorkers
+        Flower
         FastAPI
     end
     
     subgraph CeleryWorkers[Celery Workers]
         Worker1["👷 Celery Worker"]
         WorkerN["👷 Celery Worker"]
+    end
+
+    subgraph Flower[Flower]
+      FlowerUI["🌸 FlowerUI"]
     end
 
     subgraph Redis[Redis Instance]
@@ -39,10 +44,13 @@ graph TB;
         API["🌍 FastAPI App"]
     end
 
-    RedisBroker --->|Fetches Tasks From| Worker1 & WorkerN  
     Worker1 & WorkerN --->|Stores Results In| RedisBackend
+    Worker1 & WorkerN --->|Monitors Data from| FlowerUI
     RedisBackend --->|Fetches Results From | API
     API --->|Publishes to| RedisBroker 
+    RedisBroker --->|Fetches Tasks From| Worker1 & WorkerN  
+
+
 ```
 
 ## General File Structure
@@ -106,11 +114,30 @@ Queue-Service
 ## Setup
 
 ### Environment Details
-- **Demo**: The demo runs on a Virtual Machine using **Ubuntu 24.04**. If you want to run the machine in your own environment, you can check the Virtual MAchine Tutorial [here](queue_service\virtual-machine\README.md)
+- **Demo**: The demo runs on a Virtual Machine using **Ubuntu 24.04**. If you want to run the machine in your own environment, you can check the Virtual Machine Tutorial [here](queue_service\virtual-machine\README.md)
 
 - **Docker 27.5.1** (build 9f9e405) and **Docker Compose 2.32.4** were installed on the Virtual Machine. Please note, earlier Docker versions are not available on Ubuntu 24.04. For installation details, refer to [this guide](docker/README.md).
   
 - **Resource Allocation**: The machine has been provisioned with resources similar to a **t4g.micro** AWS EC2 instance.
+
+<table align="center">
+  <thead>
+    <tr>
+      <th>Operating System</th>
+      <th>Base Memory</th>
+      <th>Processors</th>
+      <th>Storage</th>
+     </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ubuntu 24.04 64-bits</td>
+      <td>1024Mb</td>
+      <td>2</td>
+      <td>10Gb</td>
+    </tr>
+  </tbody>
+</table>
 
 ### Service Setup
 The service is orchestrated using **Docker Compose** and is driven by a single `docker-compose.yaml` file located in the [redis](redis) directory. Before running the compose file, you need to setup a custom Docker network for the service.

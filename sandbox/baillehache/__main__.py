@@ -90,12 +90,13 @@ area_villa_alpina = LongLatBBox(-64.8501456212574, -64.70773302600543, -32.06252
 area_peru_deforest_01 = LongLatBBox(-75.085, -75.035, -8.295, -8.245)
 area_chaco_deforest_01 = LongLatBBox(-61.15,-61.05,-21.8,-21.7)
 area_chaco_deforest_02 = LongLatBBox(-62.28,-62.15,-21.8,-21.7)
+area_chaco_deforest_03 = LongLatBBox(-62.30,-62.11,-21.84,-21.65)
 all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina, area_peru_deforest_01, area_chaco_deforest_01, area_chaco_deforest_02]
-all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina", "peru_deforest_01", "chaco_deforest_01", "chaco_deforest_02"]
+all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina", "peru_deforest_01", "chaco_deforest_01", "chaco_deforest_02", "chaco_deforest_03"]
 #areas = [area_calmayo, area_las_penas, area_villa_alpina]
 #area_lbls = ["calmayo", "las_penas", "villa_alpina"]
-areas = [area_chaco_deforest_02]
-area_lbls = ["chaco_deforest_02"]
+areas = [area_chaco_deforest_03]
+area_lbls = ["chaco_deforest_03"]
 
 # Days of interests
 # Recommended time windows:
@@ -106,5 +107,6 @@ days = ["2014-12-01", "2024-12-01"]
 days_peru_deforest_01 = ["2015-08-04", "2015-09-10"]
 days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
 days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
+days_chaco_deforest_03 = ["2019-01-24", "2019-12-24"]
 
-test_analyse_period(areas, area_lbls, days_chaco_deforest_02)
+test_analyse_period(areas, area_lbls, days_chaco_deforest_03)

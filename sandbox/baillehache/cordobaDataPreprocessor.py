@@ -167,6 +167,9 @@ class CordobaImage:
         # Return the result image
         return image
 
+    def get_mean_ndvi(self) -> float:
+        return numpy.mean(self.bands["ndvi"])
+
     def to_ndvi(self) -> numpy.array:
         """
         Convert a CordobaImage into a NDVI array
@@ -290,6 +293,15 @@ class CordobaDataPreprocessor:
         # Step (in days) when searching an image around a given date
         self.step_search_image = 5
 
+        # Threshold for the area span in degrees (default: 0.1)
+        # When downloading the data, if the reqested area is larger than the
+        # threshold, divide the data into chunks of downloadable size
+        self.max_area_angle = 0.1
+
+        # Flag to control cloud filtering when compositing several images
+        # Default is False because it creates dirty artefacts
+        self.flag_cloud_filtering = False
+
     def select_source(self, source: CordobaDataSource):
         """
         Select a data source for the images.
@@ -384,10 +396,13 @@ class CordobaDataPreprocessor:
             if self.flag_verbose:
                 print(f"median composite of {dataset_range.size().getInfo()} images...")
                 sys.stdout.flush()
-            if source == CordobaDataSource.SENTINEL2:
-                ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
+            if self.flag_cloud_filtering:
+                if source == CordobaDataSource.SENTINEL2:
+                    ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
+                else:
+                    # TODO: cloud mask for landsat
+                    ee_image = dataset_range.median().clip(area_bounding)
             else:
-                # TODO: cloud mask for landsat
                 ee_image = dataset_range.median().clip(area_bounding)
         else:
             ee_image = dataset_range.first().clip(area_bounding)
@@ -606,6 +621,59 @@ class CordobaDataPreprocessor:
         else:
             return bands[:5]
 
+    def download_numpy_data(self, ee_image: ee.Image, area: LongLatBBox) -> numpy.array:
+        """
+        Download the image data as numpy array. Recursively split the area
+        if necessary to be able to download the data.
+        eeImage: the image to convert
+        area: the requested area as a LongLatBBox
+        Return the image data as numpy array for the requested area
+        """
+        long_span = area.long_to - area.long_from
+        lat_span = area.lat_to - area.lat_from
+        if long_span > self.max_area_angle:
+            area_left = LongLatBBox(
+                area.long_from, area.long_from + long_span / 2,
+                area.lat_from, area.lat_to)
+            area_right = LongLatBBox(
+                area.long_from + long_span / 2, area.long_to,
+                area.lat_from, area.lat_to)
+            chunk_left = self.download_numpy_data(ee_image, area_left)
+            chunk_right = self.download_numpy_data(ee_image, area_right)
+            return numpy.hstack((chunk_left, chunk_right))
+        elif lat_span > self.max_area_angle:
+            area_up = LongLatBBox(
+                area.long_from, area.long_to,
+                area.lat_from + lat_span / 2, area.lat_to)
+            area_down = LongLatBBox(
+                area.long_from, area.long_to,
+                area.lat_from, area.lat_from + lat_span / 2)
+            chunk_up = self.download_numpy_data(ee_image, area_up)
+            chunk_down = self.download_numpy_data(ee_image, area_down)
+            return numpy.vstack((chunk_up, chunk_down))
+        else:
+            area_bounding = area.to_ee_rectangle()
+            if self.flag_verbose:
+                print(f"download...({area})")
+                sys.stdout.flush()
+            bands_name = self.get_bands_name(True)
+            try:
+                url = ee_image.getDownloadUrl({
+                    'bands': bands_name,
+                    'region': area_bounding,
+                    'format': 'NPY',
+                    'crs': ee.Projection("EPSG:3395"),
+                    'scale': self.resolution
+                })
+                response = requests.get(url)
+                data_bands = numpy.load(io.BytesIO(response.content))
+            except Exception as exc:
+                if self.flag_verbose:
+                    print(f"Image data download failed...\n{exc}")
+                    sys.stdout.flush()
+                return None
+            return data_bands
+
     def cvt_ee_image_to_cordoba_image(self,
         date: str, ee_image: ee.Image, area: LongLatBBox) -> CordobaImage:
         """
@@ -631,25 +699,7 @@ class CordobaDataPreprocessor:
         # Convert the bands data to a numpy array
         # (it's possible to also get GeoTIFF format here)
         # Apply a mercator projection to convert the data to a 2D array
-        if self.flag_verbose:
-            print("download...")
-            sys.stdout.flush()
-        bands_name = self.get_bands_name(True)
-        try:
-            url = ee_image.getDownloadUrl({
-                'bands': bands_name,
-                'region': area_bounding,
-                'format': 'NPY',
-                'crs': ee.Projection("EPSG:3395"),
-                'scale': self.resolution
-            })
-            response = requests.get(url)
-            data_bands = numpy.load(io.BytesIO(response.content))
-        except Exception as exc:
-            if self.flag_verbose:
-                print(f"Image data download failed...\n{exc}")
-                sys.stdout.flush()
-            return None
+        data_bands = self.download_numpy_data(ee_image, area)
 
         # Get the dimensions of the image
         nb_col = data_bands.shape[1]
@@ -659,12 +709,19 @@ class CordobaDataPreprocessor:
         image = CordobaImage(acquisition_date, area, self.resolution, nb_col, nb_row)
 
         # Split the numpy array per band
+        bands_name = self.get_bands_name(True)
         for band_idx in range(len(bands_name)):
             image.bands[bands_name[band_idx]] = \
                 data_bands[:, :][bands_name[band_idx]]
 
         # Set the mean ndvi of the image
-        image.mean_ndvi = self.get_mean_ndvi(ee_image, area_bounding)
+        if self.flag_verbose:
+            print("compute mean ndvi...")
+            sys.stdout.flush()
+        # On large image, requesting the mean ndvi on server side is too heavy.
+        # Do it locally instead.
+        #image.mean_ndvi = self.get_mean_ndvi(ee_image, area_bounding)
+        image.mean_ndvi = image.get_mean_ndvi()
         if self.flag_verbose:
             print(f"mean ndvi: {image.mean_ndvi}")
             sys.stdout.flush()

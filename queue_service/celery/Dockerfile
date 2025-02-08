@@ -12,5 +12,5 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Command
-CMD [ "celery", "-A", "celery_app.celery_app", "worker", "--autoscale=10,2", "--loglevel=info" ]
+CMD [ "celery", "-A", "celery_app.celery_app", "worker", "--loglevel=info" ]
 

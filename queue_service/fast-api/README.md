@@ -1,8 +1,17 @@
-# FastAPI Instance
+# FastAPI App
 
 ## Requirements
 
-FastAPI and Uvicorn server were installed lcoally, together with the Celery library ready to work with Redis:
+FastAPI and Uvicorn server were installed locally, together with the Celery library ready to work with Redis:
+
+On windows
+```powershell
+py -3.11 -m venv venv
+```
+
+```powershell
+.\venv\Scripts\Activate
+```
 
 ```bash
 pip install fastapi uvicorn celery[redis]

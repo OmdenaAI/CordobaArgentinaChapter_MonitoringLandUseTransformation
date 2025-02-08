@@ -40,9 +40,7 @@ The steps to generate the data are the following:
 ## GFCTestData.ipynb
 This notebook is planned to generate the test data using the data from [Global Forest Change](https://earthenginepartners.appspot.com/science-2013-global-forest/download_v1.7.html). Actually, the notebook is not finished.
 
-![Sample of the GFC test data](./assets/GFC.png)
-
-## UnsupervisedTechniques.ipynb
+## MAD_KMeans.ipynb
 This notebook is used to apply unsupervised techniques to the test data generated in the DesmonteTestData.ipynb notebook. The techniques used are the following:
 1. MAD (Multivariate Alteration Detection) algorithm, based on the following [GEE tutorial](https://developers.google.com/earth-engine/tutorials/community/imad-tutorial-pt1).
 2. KMeans algorithm, using two clusters to separate the ROIs in two classes: deforestation and no deforestation (theorically).
@@ -50,6 +48,22 @@ This notebook is used to apply unsupervised techniques to the test data generate
 
 ![Sample of the unsupervised techniques](./assets/MAD.png)
 
+## Unet_diff.ipynb
+This notebook is used to apply a U-Net model to the test data generated in the DesmonteTestData.ipynb notebook. The model is trained to predict the deforestation areas. The models uses the Sentinel-2 difference bands also including
+the NDVI and NDWI difference indices.
+
+This code is based on the following paper DEEP LEARNING FOR REGULAR CHANGE DETECTION IN UKRAINIAN FOREST ECOSYSTEM WITH SENTINEL-2 (Kostiantyn Isaienkov, Mykhailo Yushchuk, Vladyslav Khramtsov, Oleg Seliverstov), 2020.
+
+The pretrained model and inference code was taken from their [repository](https://github.com/QuantuMobileSoftware/forest_change_detection)
+
+![Sample of the U-Net model](./assets/UnetDiff.png)
+
+## SVC_CTD.ipynb
+This notebook is used to apply a Vector Change Analysis (VCA) to the test data generated in the DesmonteTestData.ipynb notebook. The model uses the Sentinel-2 bands and its corresponding Dynamic World land cover classification (DWC) to predict the deforestation areas.
+
+Also, the model incorporates Change Type Discrimination (CTD) to classify the changes in the deforestation areas using the angles between the vector change.
+
+![Sample of the VCA model](./assets/SVC_CTD.png)
 
 ## utils.py
 This file contains the functions used in the DesmonteTestData.ipynb and UnsupervisedTechniques.ipynb notebooks.

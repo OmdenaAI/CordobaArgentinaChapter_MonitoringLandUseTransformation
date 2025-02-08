@@ -4,9 +4,10 @@ services:
     container_name: redis-instance
     ports:
       - "6379:6379"
-    command: ["sh", "-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
+    command: ["redis-server", "/etc/redis/redis.conf", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - redis-data:/data
+      - ./redis.conf:/etc/redis/redis.conf
     networks:
       - queue-network
     env_file:
@@ -19,10 +20,35 @@ services:
     container_name: celery-app
     depends_on:
       - redis
+      - minio
     networks:
       - queue-network
     env_file:
       - .env
+
+
+  flower:
+      image: mher/flower
+      container_name: flower-monitor
+      env_file: 
+        - .env
+      command: >
+        celery 
+        --broker=$CELERY_BROKER_URL 
+        --result-backend=$CELERY_RESULT_BACKEND
+        flower 
+        --port=5555 
+        --persistent=True
+        --db=/data/flower.db
+      volumes:
+        - flower-data:/data
+      ports:
+        - "5555:5555"
+      depends_on:
+        - celery
+      networks:
+        - queue-network
+
 
   fastapi:
     build:
@@ -35,13 +61,52 @@ services:
     networks:
       - queue-network
     depends_on:
-      - redis
       - celery
     env_file:
       - .env
 
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio-storage
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"  # MinIO API Port
+      - "9001:9001"  # MinIO Console Port
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+    networks:
+      - queue-network
+    env_file:
+      - .env
+
+  minio-create-buckets:
+    image: minio/mc
+    container_name: minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD;
+      mc mb myminio/${MINIO_BUCKET_NAME};
+      mc policy set public myminio/${MINIO_BUCKET_NAME};
+      exit 0;
+      "
+    networks:
+      - queue-network
+    env_file:
+      - .env
+
+
 volumes:
   redis-data:
+    driver: local
+  flower-data:
+    driver: local
+  minio-data:
     driver: local
 
 networks:

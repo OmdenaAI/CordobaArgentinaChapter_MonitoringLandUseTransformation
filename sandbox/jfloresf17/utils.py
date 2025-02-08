@@ -12,7 +12,7 @@ def get_credentials():
     """
     Get the credentials to access Google Earth Engine.
     Returns:
-    ee.ServiceAccountCredentials: The credentials to access Google Earth Engine.
+    
     """
     try: 
         # Get the notebook directory
@@ -98,6 +98,67 @@ def generate_cloudfree_composite(lat: float,
     return composite 
 
 
+def generate_dynamic_composite(lat: float,
+                               lon: float, 
+                               start_date: str,
+                               end_date: str) -> ee.Image:
+    """
+    Generate a cloud-free composite for a given year and location.
+
+    Args:
+    lat (float): Latitude of the location.
+    lon (float): Longitude of the location.
+    start_date (str): Start date of the time range. Format: 'YYYY-MM-DD'
+    end_date (str): End date of the time range. Format: 'YYYY-MM-DD'
+
+    Returns:
+    ee.Image: The cloud-free composite.
+    """
+
+    # Define the collections: Sentinel-2 and Cloud Score+
+    s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+    dynamic = ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
+
+    # Region of interest by coordinates
+    roi = ee.Geometry.Point([lon, lat])
+   
+    # Filter collections by region and date
+    s2_filtered = s2.filterBounds(roi).filterDate(start_date, end_date) \
+                  .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 60))
+        
+    class_bands = ['water',
+    'trees',
+    'grass',
+    'flooded_vegetation',
+    'crops',
+    'shrub_and_scrub',
+    'built',
+    'bare',
+    'snow_and_ice'
+    ]
+    
+    dynamic_filtered = dynamic.filterBounds(roi) \
+                              .filterDate(start_date, end_date) \
+                              .select(class_bands)
+
+    print(f"Dynamic World available images: {dynamic_filtered.size().getInfo()}")
+
+    # Join collections and generate the composite
+    dynamic_merged = ee.Join.saveFirst('dynamic').apply(**{
+        "primary": dynamic_filtered,
+        "secondary": s2_filtered,
+        "condition": ee.Filter.equals(**{
+            "leftField": 'system:index',
+            "rightField": 'system:index'
+        })
+    })
+    # Apply the cloud score mask
+    dynamic_merged = ee.ImageCollection(dynamic_merged)
+    composite = dynamic_merged.mean()
+
+    return composite 
+                               
+
 ## Dwonload the image composite by coordinates, edge size, resolution, and time range
 def download_composite(lat: float, 
                        lon: float, 
@@ -106,7 +167,9 @@ def download_composite(lat: float,
                        resolution: int,
                        start_date: str,
                        end_date: str,
-                       clear_threshold: float) -> None:
+                       clear_threshold: float,
+                       product: str = 'S2_SR_HARMONIZED'
+                       ) -> None:
 
     """
     Download a cloud-free composite for a given year and location in a square area.
@@ -121,10 +184,17 @@ def download_composite(lat: float,
     start_date (str): Start date of the time range. Format: 'YYYY-MM-DD'
     end_date (str): End date of the time range. Format: 'YYYY-MM-DD'
     clear_threshold (float): Threshold to consider a pixel as cloud-free
+    product (str): Product to use. Default: 'S2_SR_HARMONIZED'. Other option is 'DYNAMIC_WORLD'
     """
 
-    # Generate the cloud-free composite
-    composite = generate_cloudfree_composite(lat, lon, start_date, end_date, clear_threshold)
+    if product == 'S2_SR_HARMONIZED':
+        # Generate the cloud-free composite
+        composite = generate_cloudfree_composite(lat, lon, start_date, end_date, clear_threshold)
+        BANDS = ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12']
+    elif product == 'DYNAMIC_WORLD':
+        composite = generate_dynamic_composite(lat, lon, start_date, end_date)
+        BANDS = ['water', 'trees', 'grass', 'flooded_vegetation', 'crops', 'shrub_and_scrub', 
+                 'built', 'bare', 'snow_and_ice']
 
     # Get the center coordinates
     utm_crs = query_utm_crs_info(datum_name="WGS84", area_of_interest=AreaOfInterest(lon, lat, lon, lat))
@@ -140,7 +210,7 @@ def download_composite(lat: float,
     request = {
         "expression": composite,
         "fileFormat": "GEO_TIFF",
-        "bandIds": ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12'],
+        "bandIds": BANDS,
         "grid": {
             "dimensions": {
                 "width": edge_size,
@@ -169,6 +239,252 @@ def download_composite(lat: float,
         file.write(image)
     
     print(f"Image saved in {filename}")    
+
+
+# ------------------------------
+# UTIL FUNCTIONS FOR SVC + DFPS
+# ------------------------------
+
+## Compute the metric to evaluate the threshold
+def compute_Lk(magnitude: np.ndarray,
+               class_t1: np.ndarray,
+               class_t2: np.ndarray,
+               threshold: float) -> float:
+    """
+    Calculate Lk for a given threshold:
+     
+        Lk = ((Ak1 - Ak2) * 100) / A
+     
+     where:
+        - Ak1 = # of pixels that (according to ground truth) changed and
+                  (according to our threshold) were classified as changed
+        - Ak2 = # of pixels that (according to ground truth) did NOT change but
+                  (according to our threshold) were classified as changed
+        - A   = total # of pixels that (according to ground truth) changed
+
+    Args:
+    magnitude (np.ndarray): Magnitude of the change 
+    class_t1 (np.ndarray): Land cover class at time t1.
+    class_t2 (np.ndarray): Land cover class at time t2.
+    threshold (float): Threshold to consider a pixel as changed.
+
+    Returns:
+    float: Lk value. Between 0 and 100.
+    """
+    
+    # Change detected given the threshold
+    detected_change = (magnitude >= threshold)
+    
+    # A pixel changes if the class changes
+    true_change = (class_t1 != class_t2)
+
+    # A pixel does not change if the class remains the same
+    true_no_change = ~true_change
+    
+    # Calculate Ak1, Ak2, and A
+    # Ak1: pixels that changed (true_change) and were correctly detected
+    Ak1 = np.count_nonzero(true_change & detected_change)
+    
+    # Ak2: pixels that did not change (true_no_change) but were detected as changed
+    Ak2 = np.count_nonzero(true_no_change & detected_change)
+    
+    # A: total de píxeles que cambiaron en la realidad
+    A = np.count_nonzero(true_change)
+    
+    if A == 0:
+        # Evitar división por cero (caso extremo de dataset)
+        return -9999.0
+    
+    Lk_value = ((Ak1 - Ak2) * 100.0) / A
+
+    return Lk_value
+
+
+## Implement a simple threshold optimization
+def threshold_optimization(
+    magnitude: np.ndarray,
+    class_t1: np.ndarray,
+    class_t2: np.ndarray,
+    step_coarse: float = 0.1,
+    step_fine: float = 0.01,
+    tolerance: float = 1e-3,
+    max_iterations: int = 10
+) -> tuple[float, float]:
+    """
+    Threshold optimization using a simple search algorithm to maximize Lk.
+
+    Parameters:
+    magnitude (np.ndarray): Magnitude of the change vector.
+    class_t1 (np.ndarray): Land cover class at time t1.
+    class_t2 (np.ndarray): Land cover class at time t2.
+    step_coarse (float): Coarse step for the global search. Default: 0.1.
+    step_fine (float): Fine step for the local search. Default: 0.01.
+    tolerance (float): Minimum improvement in Lk to continue iterating. Default: 1e-3.
+    max_iterations (int): Maximum number of iterations. Default: 10.
+
+    Returns:
+    tuple[float, float]: The best threshold and the best Lk value.
+    """
+
+    # 1) Determine the range of magnitude
+    vmin, vmax = np.min(magnitude), np.max(magnitude)
+    
+    best_threshold = vmin
+    best_Lk = -9999.0
+    
+    iteration = 0
+    improved = True
+    
+    while iteration < max_iterations and improved:
+        iteration += 1
+        improved = False
+        
+        # --------------------------
+        # (A) COARSE STEP
+        # --------------------------
+        coarse_candidates = np.arange(vmin, vmax + step_coarse, step_coarse)
+        local_best_thr = best_threshold
+        local_best_Lk = best_Lk
+        
+        for T in coarse_candidates:
+            Lk_current = compute_Lk(magnitude, class_t1, class_t2, T)
+            if Lk_current > local_best_Lk:
+                local_best_Lk = Lk_current
+                local_best_thr = T
+        
+        # CHECK IF THE COARSE SEARCH IMPROVED
+        if (local_best_Lk - best_Lk) > tolerance:
+            best_Lk = local_best_Lk
+            best_threshold = local_best_thr
+            improved = True
+        
+        # --------------------------
+        # (B) FINE STEP
+        # --------------------------
+        # Define the range for the fine search
+        low_bound = max(vmin, best_threshold - step_coarse)
+        high_bound = min(vmax, best_threshold + step_coarse)
+        
+        fine_candidates = np.arange(low_bound, high_bound + step_fine, step_fine)
+        
+        local_best_thr = best_threshold
+        local_best_Lk = best_Lk
+        
+        for T in fine_candidates:
+            Lk_current = compute_Lk(magnitude, class_t1, class_t2, T)
+            if Lk_current > local_best_Lk:
+                local_best_Lk = Lk_current
+                local_best_thr = T
+        
+        # CHECK IF THE FINE SEARCH IMPROVED
+        if (local_best_Lk - best_Lk) > tolerance:
+            best_Lk = local_best_Lk
+            best_threshold = local_best_thr
+            improved = True
+    
+    return best_threshold, best_Lk
+
+
+def direction_cosine(delta_m: np.ndarray,
+                     delta_p: np.ndarray
+    ) -> float:
+    
+    """
+    Calculate the cosine of the angle between delta_m and delta_p.
+    Returns a value in [-1, 1].
+    The formula is:
+
+        cos(theta) = (delta_m . delta_p) / (||delta_m|| * ||delta_p||)
+
+    Args:
+    delta_m (np.ndarray): Delta vector for the model.
+    delta_p (np.ndarray): Delta vector for the probability.
+
+    Returns:
+    float: Cosine of the angle between delta_m and delta_p. Between -1 and 1.
+    """
+    norm_m = np.linalg.norm(delta_m)
+    norm_p = np.linalg.norm(delta_p)
+    
+    # To avoid division by zero
+    if norm_m < 1e-12 or norm_p < 1e-12:
+        return -9999 
+    
+    return np.dot(delta_m, delta_p) / (norm_m * norm_p)
+
+
+def change_type_discrimination(prob_t1: np.ndarray,
+                               prob_t2: np.ndarray,
+                               changed_mask: np.ndarray,
+                               n_classes: int
+    ) -> np.ndarray:
+    """
+    Assign the change type (class transition) for pixels that changed.
+
+    Args:
+    prob_t1 (np.ndarray): Array (n, height, width) with probabilities at t1.
+    prob_t2 (np.ndarray): Array (n, height, width) with probabilities at t2.
+    changed_mask (np.ndarray): Array (height, width) boolean (True = changed).
+    n_classes (int): Number of classes (e.g., 9).
+
+    Returns:
+    np.ndarray: Change map (height, width), where each "changed" pixel has a code
+                of transition a->b, and the unchanged pixels have 0.
+    """
+        
+    # 1) Pre calculate the transition vectors
+    # We use a dictionary with key=(a,b), value=delta_p_ab
+    transition_vectors = {}
+    
+    # Generate "pure" vectors for each class
+    # P_0 = (1, 0, 0, ...), P_1 = (0, 1, 0, ...) etc.
+    P = np.eye(n_classes)
+    
+    for a in range(n_classes):
+        for b in range(n_classes):
+            if a != b:
+                delta_ab = P[b] - P[a]
+                transition_vectors[(a, b)] = delta_ab
+            else:
+                transition_vectors[(a, b)] = None  # No transition (a->a)
+    
+    # 2) Create an empty change map
+    height, width = prob_t1.shape[1], prob_t1.shape[2]
+    change_map = np.zeros((height, width), dtype=np.int32)
+    
+    # 3) For each changed pixel, calculate Delta M and find the transition with the highest cosine
+    for i in range(height):
+        for j in range(width):
+            if changed_mask[i, j]:
+                # Extract the probability vectors at t1 and t2
+                p1 = prob_t1[:, i, j]  # shape (n_classes,)
+                p2 = prob_t2[:, i, j]
+                
+                # Delta M
+                delta_m = p2 - p1
+                
+                # Search for the transition (a->b) with the highest cosine
+                best_cos = -9999
+                best_transition = (0,0)
+                
+                for (a, b), delta_ab in transition_vectors.items():
+                    if delta_ab is None:
+                        continue
+                    cos_val = direction_cosine(delta_m, delta_ab)
+                    if cos_val > best_cos:
+                        best_cos = cos_val
+                        best_transition = (a, b)
+                
+                # Code the transition a->b as a number, e.g. a * 100 + b
+                a, b = best_transition
+                transition_code = a * 100 + b
+                
+                change_map[i, j] = transition_code
+            else:
+                # Unchanged pixel
+                change_map[i, j] = 0 
+    
+    return change_map
 
 
 ## Convert the S2 image to RGB

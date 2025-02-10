@@ -13,7 +13,9 @@ preprocessor = CordobaDataPreprocessor()
 #preprocessor.select_source(CordobaDataSource.SENTINEL2)
 #preprocessor.select_source(CordobaDataSource.LANDSAT8)
 preprocessor.select_source(CordobaDataSource.AUTO)
-preprocessor.max_cloud_coverage = 50.0
+#preprocessor.select_source(CordobaDataSource.OFFLINE)
+#preprocessor.max_cloud_coverage = 50.0
+#preprocessor.flag_cloud_filtering = True
 
 print(f"image resolution: {preprocessor.resolution}m/px")
 
@@ -95,8 +97,8 @@ all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas
 all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina", "peru_deforest_01", "chaco_deforest_01", "chaco_deforest_02", "chaco_deforest_03"]
 #areas = [area_calmayo, area_las_penas, area_villa_alpina]
 #area_lbls = ["calmayo", "las_penas", "villa_alpina"]
-areas = [area_chaco_deforest_03]
-area_lbls = ["chaco_deforest_03"]
+areas = [area_peru_deforest_01]
+area_lbls = ["peru_deforest_01"]
 
 # Days of interests
 # Recommended time windows:
@@ -109,4 +111,4 @@ days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
 days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
 days_chaco_deforest_03 = ["2019-01-24", "2019-12-24"]
 
-test_analyse_period(areas, area_lbls, days_chaco_deforest_03)
+test_analyse_period(areas, area_lbls, days_peru_deforest_01)

@@ -20,6 +20,8 @@ class CordobaDataSource(Enum):
     LANDSAT5 = 2
     # Automatic selection of the source sentinel2 > landsat8 > landasat5
     AUTO = 3
+    # Offline mode, return dummy data without using GEE, for test purpose
+    OFFLINE = 4
 
     def __str__(self):
         """
@@ -108,6 +110,8 @@ class CordobaImage:
         
         # Get the max value over red, green, blue bands for normalisation
         max_val = max(self.bands["red"].max(), max(self.bands["green"].max(), self.bands["blue"].max()))
+        if max_val == 0.0:
+            max_val = 1.0
 
         # Create the result image
         image = numpy.zeros([self.height, self.width, 3], numpy.uint8)
@@ -137,6 +141,8 @@ class CordobaImage:
         
         # Get the max value for normalisation
         max_val = self.bands[band].max()
+        if max_val == 0.0:
+            max_val = 1.0
 
         # Create the result image
         image = numpy.zeros([self.height, self.width, 3], numpy.uint8)
@@ -268,6 +274,7 @@ class CordobaDataPreprocessor:
         """
         Constructor for an instance of CordobaDataPreprocessor
         """
+
         # Authentication to Google Earth Engine API
         # This video was instructive regarding how to get the service
         # account and API key
@@ -279,12 +286,12 @@ class CordobaDataPreprocessor:
           service_account, credentials_path)
         ee.Initialize(credentials)
 
-        # Set the data source to Sentinel-2 by default
-        self.data_source = CordobaDataSource.SENTINEL2
+        # Set the data source to automatic by default
+        self.data_source = CordobaDataSource.AUTO
 
-        # Set the threshold for the cloud coverage to 25% by default
+        # Set the threshold for the cloud coverage to 50% by default
         # (percentage of image pixels; in [0.0, 100.0])
-        self.max_cloud_coverage = 25.0
+        self.max_cloud_coverage = 50.0
 
         # Resolution of the returned image (in meter per pixel)
         self.resolution = 30.0
@@ -553,45 +560,62 @@ class CordobaDataPreprocessor:
         # Array of result CordobaImage
         images = []
 
-        # Reference image for registration (initially none)
-        ee_image_ref = None
+        # If in offline test mode
+        if self.data_source == CordobaDataSource.OFFLINE:
 
-        # Loop on the requested dates
-        for i_date, date in enumerate(dates):
+          # Create dummy blank image
+          for i_date, date in enumerate(dates):
+              width = 100
+              height = 100
+              image = CordobaImage(date, area, self.resolution, width, height)
+              band_names = self.get_bands_name(True)
+              image.source = self.data_source
+              for band_name in band_names:
+                  image.bands[band_name] = numpy.zeros((height, width))
+              images.append(image)
 
-            # Get the ee image for the date
-            ee_image, actual_source = \
-                self.get_ee_image_registered(date, area, ee_image_ref)
+        # Else, we are in online normal mode
+        else:
 
-            # If we could get the ee.Image
-            if ee_image is not None:
+            # Reference image for registration (initially none)
+            ee_image_ref = None
 
-                # If we have no reference image yet
-                if ee_image_ref is None:
-                    # Set the current image as the reference one
-                    ee_image_ref = ee_image
+            # Loop on the requested dates
+            for i_date, date in enumerate(dates):
 
-                # Apply the remote preprocessing
-                if self.flag_verbose:
-                    print("remote preprocessing...")
-                    sys.stdout.flush()
-                ee_image = self.preprocess_gaussian_blur(ee_image)
-                ee_image = self.preprocess_ndvi(ee_image)
-                ee_image = self.preprocess_ndbi(ee_image)
-                ee_image = self.preprocess_evi(ee_image)
+                # Get the ee image for the date
+                ee_image, actual_source = \
+                    self.get_ee_image_registered(date, area, ee_image_ref)
 
-                # Convert the ee.image into a CordobaImage
-                if self.flag_verbose:
-                    print("converting to CordobaImage...")
-                    sys.stdout.flush()
-                image = \
-                    self.cvt_ee_image_to_cordoba_image(date, ee_image, area)
+                # If we could get the ee.Image
+                if ee_image is not None:
 
-                # If we could get a CordobaImage, add it to the list of result
-                # images
-                if image is not None:
-                    image.source = actual_source
-                    images.append(image)
+                    # If we have no reference image yet
+                    if ee_image_ref is None:
+                        # Set the current image as the reference one
+                        ee_image_ref = ee_image
+
+                    # Apply the remote preprocessing
+                    if self.flag_verbose:
+                        print("remote preprocessing...")
+                        sys.stdout.flush()
+                    ee_image = self.preprocess_gaussian_blur(ee_image)
+                    ee_image = self.preprocess_ndvi(ee_image)
+                    ee_image = self.preprocess_ndbi(ee_image)
+                    ee_image = self.preprocess_evi(ee_image)
+
+                    # Convert the ee.image into a CordobaImage
+                    if self.flag_verbose:
+                        print("converting to CordobaImage...")
+                        sys.stdout.flush()
+                    image = \
+                        self.cvt_ee_image_to_cordoba_image(date, ee_image, area)
+
+                    # If we could get a CordobaImage, add it to the list of result
+                    # images
+                    if image is not None:
+                        image.source = actual_source
+                        images.append(image)
 
         # Return the images
         return images

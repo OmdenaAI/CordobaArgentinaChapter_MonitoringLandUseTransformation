@@ -246,11 +246,16 @@ class CordobaImage:
 
 # Helper function to discard clouds when calculating the median of several
 # images
-def mask_clouds(image: ee.Image) -> ee.Image:
+def mask_clouds_sentinel(image: ee.Image) -> ee.Image:
     qa = image.select('QA60')
     cloud_bit_mask = 1 << 10  # Bit 10 represents clouds
     cirrus_bit_mask = 1 << 11  # Bit 11 represents cirrus clouds
     mask = qa.bitwiseAnd(cloud_bit_mask).eq(0).And(qa.bitwiseAnd(cirrus_bit_mask).eq(0))
+    return image.updateMask(mask)
+def mask_clouds_landsat(image: ee.Image) -> ee.Image:
+    qa = image.select('QA_PIXEL')
+    cloud_mask = 1 << 4  # Bit 4 represents cloud presence
+    mask = qa.bitwiseAnd(cloud_mask).eq(0)
     return image.updateMask(mask)
 
 
@@ -398,10 +403,11 @@ class CordobaDataPreprocessor:
                 sys.stdout.flush()
             if self.flag_cloud_filtering:
                 if source == CordobaDataSource.SENTINEL2:
-                    ee_image = dataset_range.map(mask_clouds).median().clip(area_bounding)
-                else:
-                    # TODO: cloud mask for landsat
-                    ee_image = dataset_range.median().clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_sentinel).median().clip(area_bounding)
+                elif source == CordobaDataSource.LANDSAT8:
+                    ee_image = dataset_range.map(mask_clouds_landsat).median().clip(area_bounding)
+                elif source == CordobaDataSource.LANDSAT5:
+                    ee_image = dataset_range.map(mask_clouds_landsat).median().clip(area_bounding)
             else:
                 ee_image = dataset_range.median().clip(area_bounding)
         else:

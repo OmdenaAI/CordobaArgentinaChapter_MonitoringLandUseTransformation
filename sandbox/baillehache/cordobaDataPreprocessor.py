@@ -690,7 +690,7 @@ class CordobaDataPreprocessor:
         # Try to get the acquisition date
         try:
             acquisition_date = \
-                ee_image.date().format("yyyy-MM-dd HH:mm", "UTC").getInfo()
+                ee_image.date().format("yyyy-MM-dd-HH-mm", "UTC").getInfo()
         except:
             # If the acquisition date is not available, use the required
             # date instead

@@ -8,3 +8,4 @@ earthengine-api
 opencv-python
 torch
 torchvision
+scikit-learn

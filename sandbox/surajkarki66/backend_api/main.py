@@ -17,14 +17,14 @@ from cordobaDataPreprocessor import *
 
 # Define a model for the input data
 class InputData(BaseModel):
-    inp_t1: str  
+    inp_t1: str
     inp_t2: str
     inp_long_from: float
     inp_long_to: float
     inp_lat_from: float
     inp_lat_to: float
-    
-    
+
+
 # Initialize FastAPI app
 app = FastAPI()
 
@@ -41,7 +41,11 @@ redis_client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
 # Define a directory to store processed images
 IMAGE_SAVE_DIR = "processed_images"
-Path(IMAGE_SAVE_DIR).mkdir(parents=True, exist_ok=True)  # Ensure directory exists
+OUTPUT_IMAGE_DIR = "output_images"
+Path(IMAGE_SAVE_DIR).mkdir(parents=True,
+                           exist_ok=True)  # Ensure directory exists
+Path(OUTPUT_IMAGE_DIR).mkdir(parents=True,
+                             exist_ok=True)  # Ensure directory exists
 
 
 @celery_app.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
@@ -62,15 +66,17 @@ def process_data_task(self, data: Dict[str, Any]) -> Dict[str, Any]:
             float(inp_long_to),
             float(inp_lat_from),
             float(inp_lat_to))
- 
+
         logging.info(f"Area: {area}")
         images = preprocessor.get_satellite_data(days, area)
         # Save images and store their file paths
         image_paths = []
         for i, img in enumerate(images):
             img_rgb = img.to_rgb()  # Convert to RGB format
-            filename = f"{IMAGE_SAVE_DIR}/satellite_{days[i]}_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-            cv2.imwrite(filename, cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR))  # Save the image
+            
+            filename = f"{IMAGE_SAVE_DIR}/satellite_rgb_{days[i]}_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+            cv2.imwrite(filename, cv2.cvtColor(
+                img_rgb, cv2.COLOR_RGB2BGR))  # Save the image
             image_paths.append(filename)
 
         result = {"status": "processed", "image_paths": image_paths}
@@ -88,7 +94,7 @@ async def root():
 @app.post("/submit")
 async def submit_data_processing_task(data: InputData, background_tasks: BackgroundTasks) -> Dict[str, str]:
     """
-    Receives an image file, enqueues a processing request, 
+    Receives the data, enqueues a processing request, 
     and returns a task ID for status tracking.
     """
     task = process_data_task.delay(data=data.dict())
@@ -111,7 +117,7 @@ def get_results(task_id: str) -> Dict:
     """
     task_result = AsyncResult(task_id, app=celery_app)
     if task_result.ready():
-        print(task_result.result)
+        ## Showing Result
         return {"task_id": task_id, "result": task_result.result}
     return {"task_id": task_id, "message": "Task not completed yet"}
 

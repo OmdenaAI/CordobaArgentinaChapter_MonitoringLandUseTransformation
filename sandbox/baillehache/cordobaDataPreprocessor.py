@@ -661,7 +661,8 @@ class CordobaDataPreprocessor:
         """
         long_span = area.long_to - area.long_from
         lat_span = area.lat_to - area.lat_from
-        if long_span > self.max_area_angle:
+        threshold_angle = self.max_area_angle / 30.0 * self.resolution
+        if long_span > threshold_angle:
             area_left = LongLatBBox(
                 area.long_from, area.long_from + long_span / 2,
                 area.lat_from, area.lat_to)
@@ -671,7 +672,7 @@ class CordobaDataPreprocessor:
             chunk_left = self.download_numpy_data(ee_image, area_left)
             chunk_right = self.download_numpy_data(ee_image, area_right)
             return numpy.hstack((chunk_left, chunk_right))
-        elif lat_span > self.max_area_angle:
+        elif lat_span > threshold_angle:
             area_up = LongLatBBox(
                 area.long_from, area.long_to,
                 area.lat_from + lat_span / 2, area.lat_to)

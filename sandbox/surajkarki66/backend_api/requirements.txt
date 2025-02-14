@@ -6,6 +6,6 @@ uvicorn
 numpy
 earthengine-api
 opencv-python
-torch
-torchvision
 scikit-learn
+Pillow
+pydantic-settings

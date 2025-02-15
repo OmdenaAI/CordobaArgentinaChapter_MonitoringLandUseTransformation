@@ -1,5 +1,7 @@
-from cordobaDataPreprocessor import *
+from typing import List
 import numpy
+
+from app.service.cordobaDataPreprocessor import CordobaImage
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler

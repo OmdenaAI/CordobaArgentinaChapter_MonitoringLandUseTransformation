@@ -4,6 +4,9 @@ from typing import Dict, List
 from celery.result import AsyncResult
 from pydantic import BaseModel, Field
 from datetime import date
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.v1.api import api_router
+from app.core.config import settings
 
 class ChangeDetectionRequest(BaseModel):
     """
@@ -29,9 +32,18 @@ class ChangeDetectionRequest(BaseModel):
         }
 
 # Initialize FastAPI app
-app = FastAPI(title="Land Use Change Detection API",
-    description="API for Land Use Change Detection",
-    version="0.1.0"
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+)
+
+# Set all CORS enabled origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins during development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize Celery app
@@ -76,3 +88,5 @@ async def get_task_status(task_id: str) -> Dict[str, str]:
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+app.include_router(api_router, prefix=settings.API_V1_STR)

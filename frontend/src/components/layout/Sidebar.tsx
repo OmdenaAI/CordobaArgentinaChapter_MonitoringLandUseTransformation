@@ -1,13 +1,14 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  Home,
+  LayoutDashboard,
+  Map,
   Upload,
   ListTodo,
   FileText,
-  Map,
   Settings,
-  X
+  X,
+  MapPin
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -47,11 +48,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         <nav className="p-4 space-y-1">
-          <NavItem to="/" icon={Home}>Dashboard</NavItem>
-          <NavItem to="/map" icon={Map}>Map Viewer</NavItem>
-          <NavItem to="/upload" icon={Upload}>Upload Data</NavItem>
-          <NavItem to="/tasks" icon={ListTodo}>Processing Queue</NavItem>
+          <NavItem to="/dashboard" icon={LayoutDashboard}>Dashboard</NavItem>
+          <NavItem to="/places" icon={MapPin}>My Places</NavItem>
           <NavItem to="/reports" icon={FileText}>Reports</NavItem>
+          <NavItem to="/map-viewer" icon={Map}>Map Viewer</NavItem>
+          <NavItem to="/upload" icon={Upload}>Upload Data</NavItem>
+          <NavItem to="/queue" icon={ListTodo}>Processing Queue</NavItem>
           <NavItem to="/settings" icon={Settings}>Settings</NavItem>
         </nav>
       </aside>

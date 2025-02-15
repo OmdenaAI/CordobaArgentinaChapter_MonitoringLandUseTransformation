@@ -1,11 +1,30 @@
-// import React, { useState } from 'react';
-import { Link } from 'react-router-dom'
-import { Satellite, Map, BarChart2, Upload, Shield, Zap } from 'lucide-react'
-// import { useShowLogin } from '../../utils/navigation_utils';
+import { Link, useNavigate } from 'react-router-dom';
+import { Satellite, Map, BarChart2, Upload, Shield, Zap } from 'lucide-react';
+import authService from '../../services/authService';
+import { useEffect, useState } from 'react';
 
 const WHATSAPP_NUMBER = '+5493513273358';
 
 export function LandingPage() {
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    setIsAuthenticated(authService.isAuthenticated());
+  }, []);
+
+  const handleLogout = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+  };
+
+  const handleLaunchPlatform = () => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      navigate('/login');
+    }
+  };
   
   return (
     <div className="min-h-screen">
@@ -17,21 +36,31 @@ export function LandingPage() {
           </Link>
         </div>
         <div>
-          <Link
-            to="/login"
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
-          >
-            Login
-          </Link>          
-          <span className="mx-2"></span> {/* Add a space between the buttons */}
-          <Link
-            to="/signup"
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
-          >
-            Sign Up
-          </Link>
+          {isAuthenticated ? (
+            <button
+              onClick={handleLogout}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+            >
+              Logout
+            </button>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+              >
+                Login
+              </Link>          
+              <span className="mx-2"></span>
+              <Link
+                to="/signup"
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
-        
       </nav>
       {/* Hero Section - Now full viewport height */}
       <div className="relative h-screen">
@@ -63,22 +92,13 @@ export function LandingPage() {
             Advanced satellite imagery analysis for monitoring land-use changes, deforestation, and urban expansion in Córdoba, Argentina.
           </p>
           {/* Main user interactions */}
-          {/* Platform launch */}
           <div className="mt-10 flex justify-center gap-x-6">
-            <Link
-              to="/map"
+            <button
+              onClick={handleLaunchPlatform}
               className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
             >
-              Launch Platform
-            </Link>
-            {/* Link to login page */}
-            <Link
-              to="/login" // Add the route to the login page
-              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors duration-200"
-            >
-              Login
-            </Link>
-            {/* Reference to features section below */}
+              {isAuthenticated ? 'Launch Platform' : 'Get Started'}
+            </button>
             <a
               href="#features"
               className="rounded-lg px-4 py-2.5 text-sm font-semibold text-blue-100 ring-1 ring-blue-100/20 hover:bg-white/10 transition-all duration-200"

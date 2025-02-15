@@ -90,7 +90,13 @@ preprocessing_service/sandbox/**/__pycache__
 sandbox/baillehache/*
 !sandbox/baillehache/cordobaPredictor.py
 !sandbox/baillehache/cordobaDataPreprocessor.py
+!sandbox/baillehache/cordobaApp.py
 !sandbox/baillehache/__main__.py
+!sandbox/baillehache/static
+!sandbox/baillehache/static/main.js
+!sandbox/baillehache/static/main.css
+!sandbox/baillehache/templates
+!sandbox/baillehache/templates/main.html
 
 # Allow VM tutorial images
 !queue_service/virtual-machine/src/*.jpg

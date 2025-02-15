@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="{{url_for('static', filename='main.css')}}"></script>
+<script src="{{url_for('static', filename='main.js')}}"></script>
+<title>Cordoba App</title>
+<div id="divInput">
+<form id="formData" method="POST">
+T1: <input id="inpT1" name="inpT1" type="date"><br>
+T2: <input id="inpT2" name="inpT2" type="date"><br>
+Longitude: from <input id="inpLongFrom" name="inpLongFrom" type="number" step="0.01"> to <input id="inpLongTo" name="inpLongTo" type="number" step="0.01"><br>
+Latitude: from <input id="inpLatFrom" name="inpLatFrom" type="number" step="0.01"> to <input id="inpLatTo" name="inpLatTo" type="number" step="0.01"><br>
+</form>
+preset: <select id="selInput" onchange="selectInput();">
+<option value="0"> </option>
+<option value="1">peru 1</option>
+<option value="2">chaco 1</option>
+<option value="3">chaco 2</option>
+</select><br>
+<input id="btnRun" type="button" value="Run" onclick="runPrediction();"><br>
+T1: <img id="imgRgb00" src="" style="max-width: 250px;"> T2: <img id="imgRgb01" src="" style="max-width: 250px;"><br>
+Prediction: <img id="imgPrediction" src="" style="max-width: 250px;"><br>
+</div>

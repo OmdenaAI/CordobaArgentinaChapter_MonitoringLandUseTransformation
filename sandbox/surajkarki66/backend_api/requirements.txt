@@ -1,0 +1,11 @@
+fastapi
+celery
+redis
+python-multipart
+uvicorn
+numpy
+earthengine-api
+opencv-python
+scikit-learn
+Pillow
+pydantic-settings

@@ -93,6 +93,7 @@ sandbox/baillehache/*
 !sandbox/baillehache/cordobaApp.py
 !sandbox/baillehache/__main__.py
 !sandbox/baillehache/static
+sandbox/baillehache/static/*
 !sandbox/baillehache/static/main.js
 !sandbox/baillehache/static/main.css
 !sandbox/baillehache/templates

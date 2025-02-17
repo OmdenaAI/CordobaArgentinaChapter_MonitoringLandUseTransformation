@@ -12,10 +12,10 @@ RUN pip install --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy the start script into the container
-COPY start_workers.sh /start_workers.sh
+COPY entrypoint.sh /entrypoint.sh
 
 # Make the script executable
-RUN chmod +x /start_workers.sh
+RUN chmod +x /entrypoint.sh
 
 # Set the command to run the shell script
-CMD ["/start_workers.sh"]
+CMD ["/entrypoint.sh"]

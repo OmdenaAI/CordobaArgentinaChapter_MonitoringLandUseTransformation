@@ -1,20 +1,10 @@
 # Redis Instance
 
 ## Deployment using Docker Compose
-The redis instance used is pulled directly from Docker Hub, using `redis:latest`, which resulted in Redis server v=7.4.2. This official image uses default settings that put 16 databases online.
 
-For it to interact with the rest of the containers, we need to create a common network:
+The redis instance used is pulled directly from Docker Hub, using `redis:latest`, which resulted in Redis server v=7.4.2. This official image uses default settings that put 16 databases online. Notice that databases require associated `volumes` where to store the data, included in the compose file, besides the reference to the network. Environment variables can be easily added with a reference to a .env file.
 
-```bash
-docker network create queue-network
-```
-
-Then, compose and build the images referenced in the compose file.
-```bash
-docker-compose up --build -d
-```
-
-Notice that databases require associated `volumes` where to store the data, included in the compose file, besides the reference to the network. Environment variables can be easily added with a reference to a .env file.
+Deployed with the main [Docker Compose](virtual-machine\docker-compose.yaml) file.
 
 ## Useful commands
 

@@ -6,13 +6,17 @@ from cordobaDataPreprocessor import *
 # Import the CordobaPredictor module
 from cordobaPredictor import *
 
+# Login info to GEE
+gee_account = "cordoba@ee-baillehachepascal.iam.gserviceaccount.com"
+gee_credentials_path = "../../../earthengine_api_key.json"
+
 # Create a preprocessor instance
-preprocessor = CordobaDataPreprocessor(online=False)
+preprocessor = \
+    CordobaDataPreprocessor(gee_account, gee_credentials_path, online=True)
 
 # Select the data source
-preprocessor.select_source(CordobaDataSource.SENTINEL2)
-#preprocessor.select_source(CordobaDataSource.LANDSAT8)
-#preprocessor.select_source(CordobaDataSource.AUTO)
+#preprocessor.data_source = CordobaDataSource.SENTINEL2
+preprocessor.data_source = CordobaDataSource.AUTO
 #preprocessor.max_cloud_coverage = 50.0
 #preprocessor.flag_cloud_filtering = True
 
@@ -111,7 +115,7 @@ days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
 days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
 days_chaco_deforest_03 = ["2019-01-24", "2019-12-24"]
 
-areas = [area_chaco_deforest_02]
-area_lbls = ["chaco_deforest_02"]
+areas = [area_peru_deforest_01]
+area_lbls = ["peru_deforest_01"]
 
-test_analyse_period(areas, area_lbls, days_chaco_deforest_02)
+test_analyse_period(areas, area_lbls, days_peru_deforest_01)

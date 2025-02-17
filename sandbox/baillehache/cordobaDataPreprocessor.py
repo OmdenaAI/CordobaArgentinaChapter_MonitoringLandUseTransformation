@@ -269,9 +269,12 @@ class CordobaDataPreprocessor:
     Class implementing tasks of the team 'data preprocessing and analysis'
     """
 
-    def __init__(self, online=True):
+    def __init__(self, gee_account, gee_credentials_path, online=True):
         """
         Constructor for an instance of CordobaDataPreprocessor
+        gee_account: GEE login
+        gee_credentials_path: path to the GEE credentials file
+        online: online/offline mode
         """
 
         # Flag for online/offline mode (in offline mode avoid interacting with
@@ -279,15 +282,9 @@ class CordobaDataPreprocessor:
         self.online = online
 
         # Authentication to Google Earth Engine API
-        # This video was instructive regarding how to get the service
-        # account and API key
-        # https://www.youtube.com/watch?v=wHBUNDTvgtk
-        # TODO: change to the credentials to those of the app
         if online:
-            service_account = "cordoba@ee-baillehachepascal.iam.gserviceaccount.com"
-            credentials_path = "../../../earthengine_api_key.json"
             credentials = ee.ServiceAccountCredentials(
-              service_account, credentials_path)
+              gee_account, gee_credentials_path)
             ee.Initialize(credentials)
 
         # Set the data source to automatic by default
@@ -309,6 +306,9 @@ class CordobaDataPreprocessor:
         # Step (in days) when searching an image around a given date
         self.step_search_image = 5
 
+        # Max number of step when searching for data around a date
+        self.nb_max_step_search = 2
+
         # Threshold for the area span in degrees (default: 0.1)
         # When downloading the data, if the reqested area is larger than the
         # threshold, divide the data into chunks of downloadable size
@@ -317,27 +317,6 @@ class CordobaDataPreprocessor:
         # Flag to control cloud filtering when compositing several images
         # Default is False because it creates dirty artefacts
         self.flag_cloud_filtering = False
-
-    def select_source(self, source: CordobaDataSource):
-        """
-        Select a data source for the images.
-        source: the data source
-        Update the source and related parameters (resolution)
-        """
-        self.data_source = source
-        if source == CordobaDataSource.SENTINEL2:
-            # TODO:
-            # would like to use
-            # self.resolution = 10.0
-            # but it raises in cvt_ee_image_to_cordoba_image
-            # ee.ee_exception.EEException: Computed value is too large.
-            self.resolution = 30.0
-        elif source == CordobaDataSource.LANDSAT8:
-            self.resolution = 30.0
-        elif source == CordobaDataSource.LANDSAT5:
-            self.resolution = 30.0
-        else:
-            self.resolution = 30.0
 
     def get_ee_image(self, date: str, area: LongLatBBox, source: CordobaDataSource) -> ee.Image:
         """
@@ -389,18 +368,16 @@ class CordobaDataPreprocessor:
         date_to = ee.Date(date).advance(shift_day, "day");
         dataset_range = dataset.filterDate(date_from, date_to)
         nb_try = 0
-        nb_max_try = 5
-        while dataset_range.size().getInfo() == 0 and nb_try < nb_max_try:
+        while dataset_range.size().getInfo() == 0 and nb_try < self.nb_max_step_search:
             if self.flag_verbose:
                 print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()}")
                 sys.stdout.flush()
-
             shift_day += self.step_search_image
             date_from = ee.Date(date).advance(-shift_day, "day");
             date_to = ee.Date(date).advance(shift_day, "day");
             dataset_range = dataset.filterDate(date_from, date_to)
             nb_try += 1
-        if nb_try >= nb_max_try:
+        if nb_try >= self.nb_max_step_search:
             return None
 
         # Composite all images into a single one using the median of all values
@@ -632,11 +609,20 @@ class CordobaDataPreprocessor:
                     image = \
                         self.cvt_ee_image_to_cordoba_image(date, ee_image, area)
 
-                    # If we could get a CordobaImage, add it to the list of result
-                    # images
-                    if image is not None:
-                        image.source = actual_source
-                        images.append(image)
+                    # If we couldn't get the image, use a dummy one instead
+                    if image is None:
+                        image = self.get_dummy_image(date, area)
+
+                    # Add the image to the list of result images
+                    image.source = actual_source
+                    images.append(image)
+
+                # else we couldn't get the ee.Image
+                else:
+                    image = self.get_dummy_image(date, area)
+                    image.source = actual_source
+                    images.append(image)
+
 
         # Return the images
         return images

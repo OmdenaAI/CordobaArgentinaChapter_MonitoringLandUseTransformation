@@ -553,6 +553,29 @@ class CordobaDataPreprocessor:
         # Return the image
         return ee_image, actual_source
 
+    def get_dummy_image(self, date: str, area: LongLatBBox) -> CordobaImage:
+        """
+        Create a dummy CordobaImage for a given area
+        date: acquisition date (eg. "2024-11-01")
+        area: the area of interest
+        Return a CordobaImage with all values for all bands set to zero.
+        Dimensions of the image approximately match those of the one that
+        would have been retrieved from GEE
+        """
+        # One degree = 111111.1 meters (approx.)
+        width = \
+            int(111111.1 / self.resolution * \
+            math.fabs(area.long_from - area.long_to))
+        height = \
+            int(111111.1 / self.resolution * \
+            math.fabs(area.lat_from - area.lat_to))
+        image = CordobaImage(date, area, self.resolution, width, height)
+        band_names = self.get_bands_name(True)
+        image.source = self.data_source
+        for band_name in band_names:
+            image.bands[band_name] = numpy.zeros((height, width))
+        return image
+
     def get_satellite_data(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
         """
         Get the satellite images for an area and a list of dates
@@ -567,20 +590,9 @@ class CordobaDataPreprocessor:
         # If in offline mode
         if self.online is False:
 
-          # Create a dummy black image instead of retrieving data from GEE
-          for i_date, date in enumerate(dates):
-              # One degree = 111111.1 meters (approx.)
-              width = \
-                  int(111111.1 / self.resolution * \
-                  math.fabs(area.long_from - area.long_to))
-              height = \
-                  int(111111.1 / self.resolution * \
-                  math.fabs(area.lat_from - area.lat_to))
-              image = CordobaImage(date, area, self.resolution, width, height)
-              band_names = self.get_bands_name(True)
-              image.source = self.data_source
-              for band_name in band_names:
-                  image.bands[band_name] = numpy.zeros((height, width))
+          # Create a dummy image instead of retrieving data from GEE
+          for date in dates:
+              image = self.get_dummy_image(date, area)
               images.append(image)
 
         # Else, we are in online normal mode

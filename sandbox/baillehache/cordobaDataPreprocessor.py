@@ -7,6 +7,7 @@ import ee
 import requests
 import io
 import sys
+import math
 
 class CordobaDataSource(Enum):
     """
@@ -20,8 +21,6 @@ class CordobaDataSource(Enum):
     LANDSAT5 = 2
     # Automatic selection of the source sentinel2 > landsat8 > landasat5
     AUTO = 3
-    # Offline mode, return dummy data without using GEE, for test purpose
-    OFFLINE = 4
 
     def __str__(self):
         """
@@ -270,21 +269,26 @@ class CordobaDataPreprocessor:
     Class implementing tasks of the team 'data preprocessing and analysis'
     """
 
-    def __init__(self):
+    def __init__(self, online=True):
         """
         Constructor for an instance of CordobaDataPreprocessor
         """
+
+        # Flag for online/offline mode (in offline mode avoid interacting with
+        # GEE for test)
+        self.online = online
 
         # Authentication to Google Earth Engine API
         # This video was instructive regarding how to get the service
         # account and API key
         # https://www.youtube.com/watch?v=wHBUNDTvgtk
         # TODO: change to the credentials to those of the app
-        service_account = "cordoba@ee-baillehachepascal.iam.gserviceaccount.com"
-        credentials_path = "../../../earthengine_api_key.json"
-        credentials = ee.ServiceAccountCredentials(
-          service_account, credentials_path)
-        ee.Initialize(credentials)
+        if online:
+            service_account = "cordoba@ee-baillehachepascal.iam.gserviceaccount.com"
+            credentials_path = "../../../earthengine_api_key.json"
+            credentials = ee.ServiceAccountCredentials(
+              service_account, credentials_path)
+            ee.Initialize(credentials)
 
         # Set the data source to automatic by default
         self.data_source = CordobaDataSource.AUTO
@@ -560,13 +564,18 @@ class CordobaDataPreprocessor:
         # Array of result CordobaImage
         images = []
 
-        # If in offline test mode
-        if self.data_source == CordobaDataSource.OFFLINE:
+        # If in offline mode
+        if self.online is False:
 
-          # Create dummy blank image
+          # Create a dummy black image instead of retrieving data from GEE
           for i_date, date in enumerate(dates):
-              width = 100
-              height = 100
+              # One degree = 111111.1 meters (approx.)
+              width = \
+                  int(111111.1 / self.resolution * \
+                  math.fabs(area.long_from - area.long_to))
+              height = \
+                  int(111111.1 / self.resolution * \
+                  math.fabs(area.lat_from - area.lat_to))
               image = CordobaImage(date, area, self.resolution, width, height)
               band_names = self.get_bands_name(True)
               image.source = self.data_source

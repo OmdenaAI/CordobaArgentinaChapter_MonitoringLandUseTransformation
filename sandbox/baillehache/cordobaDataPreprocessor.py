@@ -402,6 +402,9 @@ class CordobaDataPreprocessor:
         if dataset_range is None:
             return None
 
+        # Convert the area of interest to a ee.GeometryRectangle
+        area_bounding = area.to_ee_rectangle()
+
         # Composite all images into a single one using the median of all values
         # (don't know why but the .clip() is necessary, else we get a
         # "Unable to compute bounds for geometry" in getDownloadUrl())

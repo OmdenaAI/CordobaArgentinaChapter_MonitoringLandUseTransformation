@@ -79,11 +79,13 @@ def test_analyse_period(areas, area_lbls, days):
 
                     # Predict the deforestation relative to the previous image
                     # using FCCDN
+                    """
                     deforest_image = predictor.predictFCCDN(
                         [images[i_image-1], images[i_image]])
                     path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_fccdn.png"
                     print(f"save image to {path_deforest}")
                     Image.fromarray(deforest_image).save(path_deforest)
+                    """
 
 
 def test_search_period(areas, area_lbls, days, min_interval):
@@ -107,11 +109,6 @@ area_chaco_deforest_02 = LongLatBBox(-62.28,-62.15,-21.8,-21.7)
 area_chaco_deforest_03 = LongLatBBox(-62.30,-62.11,-21.84,-21.65)
 all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina, area_peru_deforest_01, area_chaco_deforest_01, area_chaco_deforest_02]
 all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina", "peru_deforest_01", "chaco_deforest_01", "chaco_deforest_02", "chaco_deforest_03"]
-#areas = [area_calmayo, area_las_penas, area_villa_alpina]
-#area_lbls = ["calmayo", "las_penas", "villa_alpina"]
-areas = [area_chaco_deforest_02]
-area_lbls = ["chaco_deforest_02"]
-
 
 # Days of interests
 # Recommended time windows:
@@ -124,8 +121,13 @@ days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
 days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
 days_chaco_deforest_03 = ["2019-01-24", "2019-12-24"]
 
-#test_analyse_period(
-#    [area_peru_deforest_01], ["peru_deforest_01"], days_peru_deforest_01)
+areas = [area_chaco_deforest_01]
+area_lbls = ["chaco_deforest_01"]
+period_of_interest = days_chaco_deforest_01
 min_interval = 90
-test_search_period(
-    [area_chaco_deforest_01], ["chaco_deforest_01"], days_chaco_deforest_01, min_interval)
+preprocessor.nb_max_step_search = 1
+preprocessor.step_search_image = min_interval / 4
+preprocessor.max_cloud_coverage = 25.0
+dates_of_interest = preprocessor.get_best_acquisition_dates(period_of_interest[0], period_of_interest[1], areas[0], min_interval)
+test_analyse_period(areas, area_lbls, dates_of_interest)
+

@@ -86,6 +86,15 @@ def test_analyse_period(areas, area_lbls, days):
                     Image.fromarray(deforest_image).save(path_deforest)
 
 
+def test_search_period(areas, area_lbls, days, min_interval):
+    # Loop on areas of interest
+    for i_area, area in enumerate(areas):
+        print(f"=== {area_lbls[i_area]}")
+
+        # Search the best dates
+        dates = preprocessor.get_best_acquisition_dates(days[0], days[1], area, min_interval)
+        print(f"{dates}")
+
 # Areas of interest
 area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
 area_los_medanitos = LongLatBBox(-65.7, -65.6, -31.6, -31.5)
@@ -115,7 +124,8 @@ days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
 days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
 days_chaco_deforest_03 = ["2019-01-24", "2019-12-24"]
 
-areas = [area_peru_deforest_01]
-area_lbls = ["peru_deforest_01"]
-
-test_analyse_period(areas, area_lbls, days_peru_deforest_01)
+#test_analyse_period(
+#    [area_peru_deforest_01], ["peru_deforest_01"], days_peru_deforest_01)
+min_interval = 90
+test_search_period(
+    [area_chaco_deforest_01], ["chaco_deforest_01"], days_chaco_deforest_01, min_interval)

@@ -8,6 +8,7 @@ import requests
 import io
 import sys
 import math
+import datetime
 
 class CordobaDataSource(Enum):
     """
@@ -318,15 +319,16 @@ class CordobaDataPreprocessor:
         # Default is False because it creates dirty artefacts
         self.flag_cloud_filtering = False
 
-    def get_ee_image(self, date: str, area: LongLatBBox, source: CordobaDataSource) -> ee.Image:
+    def search_dataset_range(self, date: str, area: LongLatBBox, source: CordobaDataSource) -> ee.ImageCollection:
         """
-        Get the satellite image for a given date and area.
+        Search dates around a given date for which an ee.ImageCollection
+        containing at least one image for a given area
         date: the date (eg. "2024-12-01")
         area: the area of interest
         source: the data source to use
-        Return the a composite image of the area with preprocessing.
+        Return the ImageCollection, or None if no images available
         """
-
+        
         # Convert the area of interest to a ee.GeometryRectangle
         area_bounding = area.to_ee_rectangle()
 
@@ -359,25 +361,45 @@ class CordobaDataPreprocessor:
 
         # Loop to search a date range around the required date which includes
         # at least one image
-        if self.flag_verbose:
-            print("image acquisition...")
-            sys.stdout.flush()
-
-        shift_day = 1
+        shift_day = self.step_search_image
         date_from = ee.Date(date).advance(-shift_day, "day");
         date_to = ee.Date(date).advance(shift_day, "day");
         dataset_range = dataset.filterDate(date_from, date_to)
         nb_try = 0
         while dataset_range.size().getInfo() == 0 and nb_try < self.nb_max_step_search:
             if self.flag_verbose:
-                print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()}")
+                print(f"no image in {date_from.format('yyyy-MM-dd', 'UTC').getInfo()} - {date_to.format('yyyy-MM-dd', 'UTC').getInfo()} for {source}")
                 sys.stdout.flush()
             shift_day += self.step_search_image
             date_from = ee.Date(date).advance(-shift_day, "day");
             date_to = ee.Date(date).advance(shift_day, "day");
             dataset_range = dataset.filterDate(date_from, date_to)
             nb_try += 1
+
+        # Return the ImageCollection for the result date range
         if nb_try >= self.nb_max_step_search:
+            return None
+        else:
+            return dataset_range
+
+    def get_ee_image(self, date: str, area: LongLatBBox, source: CordobaDataSource) -> ee.Image:
+        """
+        Get the satellite image for a given date and area.
+        date: the date (eg. "2024-12-01")
+        area: the area of interest
+        source: the data source to use
+        Return the a composite image of the area with preprocessing.
+        """
+
+        if self.flag_verbose:
+            print("image acquisition...")
+            sys.stdout.flush()
+
+        # Search for the date range with available image
+        dataset_range = self.search_dataset_range(date, area, source)
+        
+        # If no image is available, stop here
+        if dataset_range is None:
             return None
 
         # Composite all images into a single one using the median of all values
@@ -865,3 +887,69 @@ class CordobaDataPreprocessor:
         # Apply the kernel to relevant bands and return the result
         relevant_bands = self.get_bands_name(False)
         return image.select(relevant_bands, relevant_bands).convolve(kernel)
+
+    def get_best_acquisition_dates(self, date_from: str, date_to: str, area: LongLatBBox, min_interval: int) -> List[str]:
+        """
+        Search for the best acquisition dates within a period.
+        date_from, date_to: date as "YYYY-MM-DD" defining the range of search
+        area: area of interest
+        min_interval: minimum number of days separating two dates
+        Return an array of suggested dates to acquire data, such as if it's
+        used as argument of get_satellite_data it is guaranteed there will be
+        at least one image available per date and there will be as many dates as
+        possible (unless there are no image available at all in the requested
+        range)
+        """
+
+        # To avoid infinite loop below if inputs are wrong
+        if date_from > date_to or min_interval <= 0:
+            return [date_from]
+
+        # Create the list of candidates
+        candidate_dates = []
+        d = date_from
+        while d <= date_to:
+            candidate_dates += [d]
+            d = \
+                datetime.datetime.strptime(d, "%Y-%m-%d") + \
+                datetime.timedelta(days=min_interval)
+            d = d.strftime("%Y-%m-%d")
+
+        # Variable to memorise the best dates
+        best_dates = []
+
+        # If in online mode
+        if self.online is True:
+
+            # Loop on the candidates
+            for candidate_date in candidate_dates:
+
+                # Check if there are data for this candidate date in any of
+                # the data source
+                sources = [CordobaDataSource.SENTINEL2, CordobaDataSource.LANDSAT8, CordobaDataSource.LANDSAT5]
+                idx_source = 0
+                dataset_range = None
+                while dataset_range is None and idx_source < len(sources):
+                    dataset_range = self.search_dataset_range(candidate_date, area, sources[idx_source])
+                    idx_source += 1
+
+                # If there was no data available for this range
+                if dataset_range is None:
+                    if self.flag_verbose:
+                        print(f"{candidate_date} NG")
+                        sys.stdout.flush()
+
+                # Else this candidate is ok, add it to the result
+                else:
+                    if self.flag_verbose:
+                        print(f"{candidate_date} OK")
+                        sys.stdout.flush()
+                    best_dates += [candidate_date]
+        
+        # Else, in offline mode we can't check so we return the
+        # the candidates by default
+        else:
+            best_dates = candidate_dates
+
+        # Return the dates
+        return best_dates

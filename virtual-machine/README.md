@@ -78,7 +78,7 @@ Queue-Service
 |   Dockerfile
 |   README.md
 |
-+---docker
++---docker-setup
 |   README.md
 |
 +---fast-api
@@ -98,7 +98,7 @@ Queue-Service
 |   redis.conf
 |   README.md
 |
-+---virtual-machine
++---vm-setup
 |   +---src
 |   |   appliance-import-1.jpg
 |   |   appliance-import-2.jpg

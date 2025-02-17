@@ -416,11 +416,11 @@ class CordobaDataPreprocessor:
                 sys.stdout.flush()
             if self.flag_cloud_filtering:
                 if source == CordobaDataSource.SENTINEL2:
-                    ee_image = dataset_range.map(mask_clouds_sentinel).median().clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_sentinel).median() #.clip(area_bounding)
                 elif source == CordobaDataSource.LANDSAT8:
-                    ee_image = dataset_range.map(mask_clouds_landsat).median().clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_landsat).median() #.clip(area_bounding)
                 elif source == CordobaDataSource.LANDSAT5:
-                    ee_image = dataset_range.map(mask_clouds_landsat).median().clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_landsat).median() #.clip(area_bounding)
             else:
                 ee_image = dataset_range.median().clip(area_bounding)
         else:
@@ -546,11 +546,13 @@ class CordobaDataPreprocessor:
                 patchWidth=100.0)
 
             # Radiometric registration
-            #if self.flag_verbose:
-            #    print("radiometric registration...")
-            #    sys.stdout.flush()
-            #ee_image = \
-            #    self.radiometric_registration(ee_image_ref, ee_image, area)
+            """
+            if self.flag_verbose:
+                print("radiometric registration...")
+                sys.stdout.flush()
+            ee_image = \
+                self.radiometric_registration(ee_image_ref, ee_image, area)
+            """
 
         # Return the image
         return ee_image, actual_source
@@ -720,6 +722,16 @@ class CordobaDataPreprocessor:
                 print(f"download...({area})")
                 sys.stdout.flush()
             bands_name = self.get_bands_name(True)
+            """
+            # Should work and is cleaner thant getDownloadUrl but, it returns
+            # different geometries for the same area_bounding, give up
+            request = {
+                'expression': ee_image.clipToBoundsAndScale(geometry=area_bounding, scale=self.resolution),
+                'fileFormat': 'NUMPY_NDARRAY',
+                'bandIds': bands_name,
+            }
+            data_bands = ee.data.computePixels(request)
+            """
             try:
                 url = ee_image.getDownloadUrl({
                     'bands': bands_name,
@@ -753,7 +765,7 @@ class CordobaDataPreprocessor:
         # Try to get the acquisition date
         try:
             acquisition_date = \
-                ee_image.date().format("yyyy-MM-dd-HH-mm", "UTC").getInfo()
+                ee_image.date().format("yyyy-MM-dd", "UTC").getInfo()
         except:
             # If the acquisition date is not available, use the required
             # date instead
@@ -776,6 +788,7 @@ class CordobaDataPreprocessor:
         for band_idx in range(len(bands_name)):
             image.bands[bands_name[band_idx]] = \
                 data_bands[:, :][bands_name[band_idx]]
+            #    data_bands[bands_name[band_idx]][:, :]
 
         # Set the mean ndvi of the image
         if self.flag_verbose:

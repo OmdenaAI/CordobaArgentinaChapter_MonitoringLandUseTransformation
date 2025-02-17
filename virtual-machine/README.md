@@ -1,4 +1,4 @@
-<h1 style="color: #7A8B56; font-size: 24px; font-weight: bold; text-align: center; padding: 10px; border: 2px solid #7A8B56;">Queue Service</h1>
+<h1 style="color: #7A8B56; font-size: 24px; font-weight: bold; text-align: center; padding: 10px; border: 2px solid #7A8B56;">Argentina Land Use - Services</h1>
 
 ## Overview
 
@@ -19,7 +19,7 @@
 
 graph TB;
 
-    subgraph Network[Queue Service Network]
+    subgraph Network[Argentina Land Use Network]
         Redis
         CeleryWorkers
         Flower
@@ -66,16 +66,18 @@ graph TB;
   <summary>Click here to expand the application's file structure graphic</summary>
 
 ```
-Queue-Service
+virtual-machine
 +---celery
 |   +---app
 |   |   __init__.py
+|   |   celery_app_with_priorities.py
 |   |   celery_app.py
 |   |   tasks.py
 |   |   requirements.txt
 |   |
 |   .env
 |   Dockerfile
+|   Dockerfile.txt
 |   README.md
 |
 +---docker-setup
@@ -92,9 +94,13 @@ Queue-Service
 |   Dockerfile
 |   README.md
 |
++---postgres
+|   +---backup
+|   |
+|   docker-entrypoint.sh
+|   
 +---redis
 |   .env
-|   docker-compose.yaml
 |   redis.conf
 |   README.md
 |
@@ -113,6 +119,8 @@ Queue-Service
 |   |
 |   README.md
 |
+|---.env
+|---docker-compose.yaml
 |---README.md
 ```
 
@@ -121,7 +129,7 @@ Queue-Service
 ## Setup
 
 ### Environment Details
-- **Demo**: The demo runs on a Virtual Machine using **Ubuntu 24.04**. If you want to run the machine in your own environment, you can check the Virtual Machine Tutorial [here](queue_service\virtual-machine\README.md)
+- **Demo**: The demo runs on a Virtual Machine using **Ubuntu 24.04**. If you want to run the machine in your own environment, you can check the Virtual Machine Tutorial [here](vm-setup/README.md)
 
 - **Docker 27.5.1** (build 9f9e405) and **Docker Compose 2.32.4** were installed on the Virtual Machine. Please note, earlier Docker versions are not available on Ubuntu 24.04. For installation details, refer to [this guide](docker/README.md).
   
@@ -147,10 +155,10 @@ Queue-Service
 </table>
 
 ### Service Setup
-The service is orchestrated using **Docker Compose** and is driven by a single `docker-compose.yaml` file located in the [redis](redis) directory. Before running the compose file, you need to setup a custom Docker network for the service.
+The service is orchestrated using **Docker Compose** and is driven by a single [Docker Compose](docker-compose.yaml) file located in the virtual machine's project root. Before running the compose file, you need to setup a custom Docker network for the service.
 
 ```bash
-docker network create queue-network
+docker network create argland-network
 ```
 
 ### Deployment
@@ -158,5 +166,5 @@ docker network create queue-network
 - **MiniO**: Simulating AWS S3 instance. Deployed from pre-built image from Docker Hub.
 - **Flower**: Also deployed from pre-built image pulled from Docker Hub, with custom settings provided via docker-compose.
 - **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile` and environment variables found in their respective directories. 
-- The `docker-compose.yaml` and `.env` files in the **Redis** directory links everything together and ensures smooth orchestration.
+- The `docker-compose.yaml` and `.env` files link everything together and ensure smooth orchestration.
 

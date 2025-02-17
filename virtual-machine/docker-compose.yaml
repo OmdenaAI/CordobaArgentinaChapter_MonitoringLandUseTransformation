@@ -10,7 +10,7 @@ services:
       - redis-data:/data
       - ./redis/redis.conf:/etc/redis/redis.conf
     networks:
-      - queue-network
+      - argland-network
     env_file:
       - .env
 
@@ -25,7 +25,7 @@ services:
 #      - ./postgres/backup:/backup
 #      - ./postgres/docker-entrypoint.sh:/docker-entrypoint-initdb.d/init.sh
 #    networks:
-#      - queue-network
+#      - argland-network
 #    env_file:
 #      - .env
 
@@ -43,7 +43,7 @@ services:
       MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
       MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
     networks:
-      - queue-network
+      - argland-network
     env_file:
       - .env
 
@@ -62,7 +62,7 @@ services:
       exit 0;
       "
     networks:
-      - queue-network
+      - argland-network
     env_file:
       - .env
 
@@ -77,7 +77,7 @@ services:
       - redis
       - minio
     networks:
-      - queue-network
+      - argland-network
     env_file:
       - .env
 
@@ -103,7 +103,7 @@ services:
     depends_on:
       - celery
     networks:
-      - queue-network
+      - argland-network
 
 
   fastapi:
@@ -117,7 +117,7 @@ services:
     ports:
       - "8000:8000"
     networks:
-      - queue-network
+      - argland-network
     depends_on:
       - celery
     env_file:
@@ -135,5 +135,5 @@ volumes:
 
 
 networks:
-  queue-network:
+  argland-network:
     external: true

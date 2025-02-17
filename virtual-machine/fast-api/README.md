@@ -35,7 +35,7 @@ Including the needed files and installs for the FastAPI app to connect to Celery
 
 ## Deployment using Docker Compose
 
-The compose for this is part of the main docker-compose.yaml file present in the Redis dir, and the Dockerfile present in this dir is referenced there, so is the .env file.
+Deployed with the main [Docker Compose](virtual-machine\docker-compose.yaml) file.
 
 
 

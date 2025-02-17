@@ -99,3 +99,10 @@ images = preprocessor.get_satellite_data(dates, area_of_interest)
 As satellite data are not available on every day, there may be no data for the requested date(s). The preprocessor then increases progressively the range of acceptable dates to look for available data, in the range `date+-preprocessor.step_search_image*k` for `k` in `[0,preprocessor.nb_max_step_search[`. If several images are found within the interval they are composed into one using the median of values. If no data at all were found for a requested date, a dummy image (all band data set to 0) is returned instead.
 
 The result image(s) can be used as explained in the CordobaImage section.
+
+It is possible to automatically search for dates for which there is data available (subject to the cloud cover threshold and other search parameters) with the `get_best_acquisition_dates()` method. For example, to search available dates in the 6 first months of 2024 with a one week interval:
+```
+min_interval = 7
+area_of_interest = ...
+available_dates = preprocessor.get_best_acquisition_dates("2024-01-01", "2024-05-31", area_of_interest, min_interval)
+```

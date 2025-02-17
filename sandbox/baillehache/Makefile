@@ -2,7 +2,7 @@ run:
 	python __main__.py
 
 edit:
-	geany Makefile *.py static/*js static/*css templates/*html
+	geany Makefile *.py static/*js static/*css templates/*html README.md
 
 video:
 	ffmpeg -framerate 2 -pattern_type glob -i 'Data/b*.png' \

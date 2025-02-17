@@ -92,6 +92,7 @@ sandbox/baillehache/*
 !sandbox/baillehache/cordobaDataPreprocessor.py
 !sandbox/baillehache/cordobaApp.py
 !sandbox/baillehache/__main__.py
+!sandbox/baillehache/README.md
 !sandbox/baillehache/static
 sandbox/baillehache/static/*
 !sandbox/baillehache/static/main.js

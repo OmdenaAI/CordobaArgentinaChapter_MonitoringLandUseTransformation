@@ -29,7 +29,6 @@ def run_prediction():
         float(request.form["inpLongTo"]),
         float(request.form["inpLatFrom"]),
         float(request.form["inpLatTo"]))
-    print(f"{area}")
     images = preprocessor.get_satellite_data(days, area)
     
     # Run the prediction model on the data

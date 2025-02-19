@@ -20,6 +20,7 @@
 graph TB;
 
     subgraph Network[Argentina Land Use Network]
+        Postgres
         Redis
         CeleryWorkers
         Flower
@@ -41,6 +42,10 @@ graph TB;
         RedisBackend@{ shape: cyl, label: "🛢️ Tasks Results - DB 1" }
     end
 
+    subgraph Postgres[Postgres Instance]
+        PostgresDB@{ shape: cyl, label: "🛢️ Omdena_argentina_land_use_db" }
+    end
+    
     subgraph FastAPI[FastAPI Instance]
         API["🌍 FastAPI App"]
     end
@@ -53,6 +58,7 @@ graph TB;
     CeleryWorkers --->|Monitors Data from| Flower
     RedisBackend --->|Fetches Results From | FastAPI
     CeleryWorkers <--->|Open/Saves files| MiniO
+    FastAPI <--->|Reads/Saves data| Postgres
     FastAPI <--->|Open/Saves files| MiniO
     FastAPI --->|Publishes to| RedisBroker 
     RedisBroker --->|Fetches Tasks From| CeleryWorkers  
@@ -116,10 +122,26 @@ virtual-machine
 |   |   appliance-import-8.jpg
 |   |   appliance-import-9.jpg
 |   |   appliance-import-10.jpg
+|   |   new-virtual-machine-1.jpg
+|   |   new-virtual-machine-2.jpg
+|   |   new-virtual-machine-3-7.jpg
+|   |   new-virtual-machine-8-9.jpg
+|   |   new-virtual-machine-10-12.jpg
+|   |   new-virtual-machine-13-15.jpg
+|   |   new-virtual-machine-16.jpg
+|   |   new-virtual-machine-17.jpg
+|   |   new-virtual-machine-18.jpg
+|   |   new-virtual-machine-19.jpg
+|   |   new-virtual-machine-20.jpg
+|   |   new-virtual-machine-21.jpg
+|   |   new-virtual-machine-22.jpg
+|   |   new-virtual-machine-23a.jpg
+|   |   new-virtual-machine-23b.jpg
 |   |
 |   README.md
 |
 |---.env
+|---.gitignore
 |---docker-compose.yaml
 |---README.md
 ```

@@ -14,20 +14,20 @@ services:
     env_file:
       - .env
 
-#  postgres:
-#    image: postgis/postgis:16-3.4    
-#    restart: unless-stopped
-#    container_name: postgres-server
-#    ports:
-#      - "5432:5432"
-#    volumes:
-#      - pgdata:/var/lib/postgresql/data
-#      - ./postgres/backup:/backup
-#      - ./postgres/docker-entrypoint.sh:/docker-entrypoint-initdb.d/init.sh
-#    networks:
-#      - argland-network
-#    env_file:
-#      - .env
+  postgres:
+    image: postgis/postgis:16-3.4    
+    restart: unless-stopped
+    container_name: postgres-server
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/backup:/backup
+      - ./postgres/docker-entrypoint.sh:/docker-entrypoint-initdb.d/init.sh
+    networks:
+      - argland-network
+    env_file:
+      - .env
 
   minio:
     image: quay.io/minio/minio:latest
@@ -49,7 +49,6 @@ services:
 
   minio-create-buckets:
     image: minio/mc
-    restart: unless-stopped
     container_name: minio-init
     depends_on:
       - minio
@@ -57,8 +56,12 @@ services:
       /bin/sh -c "
       sleep 5;
       mc alias set myminio http://minio:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD;
-      mc mb myminio/${MINIO_BUCKET_NAME};
-      mc policy set public myminio/${MINIO_BUCKET_NAME};
+      if ! mc ls myminio/${MINIO_BUCKET_NAME} > /dev/null 2>&1; then
+        mc mb myminio/${MINIO_BUCKET_NAME};
+        mc policy set public myminio/${MINIO_BUCKET_NAME};
+      else
+        echo 'Bucket ${MINIO_BUCKET_NAME} already exists, skipping creation.';
+      fi;
       exit 0;
       "
     networks:
@@ -70,7 +73,7 @@ services:
     build:
       context: ./celery/
       dockerfile: Dockerfile
-    image: fast-api-arg-land:latest
+    image: celery-arg-land:latest
     restart: unless-stopped
     container_name: celery-app
     depends_on:
@@ -110,7 +113,7 @@ services:
     build:
       context: ./fast-api/
       dockerfile: Dockerfile
-    image: celery-arg-land:latest
+    image: fast-api-arg-land:latest
     restart: unless-stopped
     container_name: fastapi-app
     command: uvicorn main:app --host 0.0.0.0 --port 8000
@@ -120,14 +123,15 @@ services:
       - argland-network
     depends_on:
       - celery
+      - postgres
     env_file:
       - .env
 
 volumes:
   redis-data:
     driver: local
-#  pgdata:
-#    driver: local
+  postgres-data:
+    driver: local
   flower-data:
     driver: local
   minio-data:

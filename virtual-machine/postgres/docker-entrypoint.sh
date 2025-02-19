@@ -6,7 +6,7 @@ sleep 5
 
 # Connect to PostgreSQL and create the database
 psql -U "$POSTGRES_USER" -tc "SELECT 1 FROM pg_database WHERE datname = '$POSTGRES_DB'" | grep -q 1 || \
-    psql -U "$POSTGRES_USER" -c "CREATE DATABASE $POSTGRES_DB;"
+    psql -U "$POSTGRES_USER" -c "CREATE DATABASE IF NOT EXISTS $POSTGRES_DB;"
 
 # Enable PostGIS extension (if needed)
 psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE EXTENSION IF NOT EXISTS postgis;"

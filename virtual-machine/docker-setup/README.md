@@ -55,17 +55,17 @@ sudo chmod +x /usr/local/bin/docker-compose
 
 ### Start container
 ```bash
-docker-compose up
+sudo docker-compose up
 ```
 
 ### Start in detached mode
 ```bash
-docker-compose up -d
+sudo docker-compose up -d
 ```
 
 ### Build from Dockerfiles + Start in detached mode
 ```bash
-docker-compose up --build -d
+sudo docker-compose up --build -d
 ```
 
 ### Check running containers

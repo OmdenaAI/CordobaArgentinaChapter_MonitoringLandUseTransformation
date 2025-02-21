@@ -46,7 +46,8 @@ def generate_cloudfree_composite(lat: float,
                                  lon: float, 
                                  start_date: str,
                                  end_date: str, 
-                                 clear_threshold: float) -> ee.Image:
+                                 clear_threshold: float,
+                                 compose_by: str) -> ee.Image:
     """
     Generate a cloud-free composite for a given year and location.
 
@@ -56,6 +57,7 @@ def generate_cloudfree_composite(lat: float,
     start_date (str): Start date of the time range. Format: 'YYYY-MM-DD'
     end_date (str): End date of the time range. Format: 'YYYY-MM-DD'
     clear_threshold (float): Threshold to consider a pixel as cloud-free. From 0 to 1.
+    compose_by (str): The method to compose the images. Options: 'mean', 'median', 'max', 'min'
 
     Returns:
     ee.Image: The cloud-free composite.
@@ -93,7 +95,17 @@ def generate_cloudfree_composite(lat: float,
 
     # Apply the cloud score mask
     s2_with_cloud_score = ee.ImageCollection(s2_with_cloud_score)
-    composite = s2_with_cloud_score.map(apply_cloudscore).median()
+    
+    if compose_by == 'mean':
+        composite = s2_with_cloud_score.map(apply_cloudscore).mean()
+    elif compose_by == 'median':
+        composite = s2_with_cloud_score.map(apply_cloudscore).median()
+    elif compose_by == 'max':
+        composite = s2_with_cloud_score.map(apply_cloudscore).max()
+    elif compose_by == 'min':
+        composite = s2_with_cloud_score.map(apply_cloudscore).min()
+    else:
+        raise ValueError("Invalid compose_by option. Use 'mean', 'median', 'max', or 'min'")
 
     return composite 
 
@@ -101,7 +113,8 @@ def generate_cloudfree_composite(lat: float,
 def generate_dynamic_composite(lat: float,
                                lon: float, 
                                start_date: str,
-                               end_date: str) -> ee.Image:
+                               end_date: str,
+                               compose_by: str) -> ee.Image:
     """
     Generate a cloud-free composite for a given year and location.
 
@@ -110,6 +123,7 @@ def generate_dynamic_composite(lat: float,
     lon (float): Longitude of the location.
     start_date (str): Start date of the time range. Format: 'YYYY-MM-DD'
     end_date (str): End date of the time range. Format: 'YYYY-MM-DD'
+    compose_by (str): The method to compose the images. Options: 'mean', 'median', 'max', 'min'
 
     Returns:
     ee.Image: The cloud-free composite.
@@ -152,24 +166,34 @@ def generate_dynamic_composite(lat: float,
             "rightField": 'system:index'
         })
     })
-    # Apply the cloud score mask
+    # Merge the images from the Dynamic World
     dynamic_merged = ee.ImageCollection(dynamic_merged)
-    composite = dynamic_merged.mean()
+    if compose_by == 'mean':
+        composite = dynamic_merged.mean()
+    elif compose_by == 'median':
+        composite = dynamic_merged.median()
+    elif compose_by == 'max':
+        composite = dynamic_merged.max()
+    elif compose_by == 'min':
+        composite = dynamic_merged.min()
+    else:
+        raise ValueError("Invalid compose_by option. Use 'mean', 'median', 'max', or 'min'")
 
     return composite 
                                
 
 ## Dwonload the image composite by coordinates, edge size, resolution, and time range
-def download_composite(lat: float, 
-                       lon: float, 
-                       filename: str, 
-                       edge_size: int,
-                       resolution: int,
-                       start_date: str,
-                       end_date: str,
-                       clear_threshold: float,
-                       product: str = 'S2_SR_HARMONIZED'
-                       ) -> None:
+def get_composite(lat: float, 
+                lon: float,                        
+                edge_size: int,
+                start_date: str,
+                end_date: str,
+                product: str = 'S2_SR_HARMONIZED',                               
+                resolution: int = 10,                                     
+                save_file: bool = False,
+                filename: str = None,
+                clear_threshold: float=0.6
+                ) -> np.ndarray:
 
     """
     Download a cloud-free composite for a given year and location in a square area.
@@ -178,21 +202,27 @@ def download_composite(lat: float,
     lat (float): Latitude of the location.
     lon (float): Longitude of the location.
     composite (float): Cloud-free composite.
-    filename (str): Filepath to save the image.
     edge_size (int): Size of the image edge in meters.
     resolution (int): Resolution of the image in meters.
     start_date (str): Start date of the time range. Format: 'YYYY-MM-DD'
-    end_date (str): End date of the time range. Format: 'YYYY-MM-DD'
-    clear_threshold (float): Threshold to consider a pixel as cloud-free
+    end_date (str): End date of the time range. Format: 'YYYY-MM-DD'    
     product (str): Product to use. Default: 'S2_SR_HARMONIZED'. Other option is 'DYNAMIC_WORLD'
+    save_file (bool): Save the image to disk. Default: False.    
+    filename (str): Filepath to save the image. Default: None.
+    clear_threshold (float): Threshold to consider a pixel as cloud-free. From 0 to 1, default: 0.6.
+
+    Returns:
+    np.ndarray: The composite product for the given location.
     """
 
     if product == 'S2_SR_HARMONIZED':
         # Generate the cloud-free composite
-        composite = generate_cloudfree_composite(lat, lon, start_date, end_date, clear_threshold)
+        composite = generate_cloudfree_composite(lat, lon, start_date, end_date, clear_threshold, 
+                                                 compose_by='mean')
         BANDS = ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12']
+
     elif product == 'DYNAMIC_WORLD':
-        composite = generate_dynamic_composite(lat, lon, start_date, end_date)
+        composite = generate_dynamic_composite(lat, lon, start_date, end_date, compose_by='median')
         BANDS = ['water', 'trees', 'grass', 'flooded_vegetation', 'crops', 'shrub_and_scrub', 
                  'built', 'bare', 'snow_and_ice']
 
@@ -229,17 +259,22 @@ def download_composite(lat: float,
         },    
     }
 
-    # Compute the pixels and save the image
-    filename = pathlib.Path(filename)
-    filename.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Save the image
     image = ee.data.computePixels(request)
-    with open(filename, 'wb') as file:
-        file.write(image)
-    
-    print(f"Image saved in {filename}")    
 
+    if save_file:
+        # Compute the pixels and save the image
+        filename = pathlib.Path(filename)
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Save the image
+        
+        with open(filename, 'wb') as file:
+            file.write(image)
+        
+        print(f"Image saved in {filename}")    
+
+    else:
+        return image
 
 # ------------------------------
 # UTIL FUNCTIONS FOR SVC + DFPS

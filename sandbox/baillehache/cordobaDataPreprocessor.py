@@ -22,6 +22,8 @@ class CordobaDataSource(Enum):
     LANDSAT5 = 2
     # Automatic selection of the source sentinel2 > landsat8 > landasat5
     AUTO = 3
+    # https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_DYNAMICWORLD_V1
+    DYNAMIC_WORLD = 4
 
     def __str__(self):
         """
@@ -172,6 +174,15 @@ class CordobaImage:
 
         # Return the result image
         return image
+
+    def to_dynamic_world_mask(self, band: str) -> numpy.array:
+        """
+        Convert a CordobaImage into a mask for a given band
+        Return the mask as a numpy array.
+        Pixel values in [0,255], 1 channel. 0 is 'not matching', 1 is 'matching'.
+        """
+        # TODO max prob instead of constant 0.5
+        return ((self.bands[band] > 0.5) * 255.0).astype(numpy.uint8)
 
     def get_mean_ndvi(self) -> float:
         return numpy.mean(self.bands["ndvi"])
@@ -339,6 +350,8 @@ class CordobaDataPreprocessor:
           dataset = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
         elif source == CordobaDataSource.LANDSAT5:
           dataset = ee.ImageCollection('LANDSAT/LT05/C02/T1_L2')
+        elif source == CordobaDataSource.DYNAMIC_WORLD:
+          dataset = ee.ImageCollection('GOOGLE/DYNAMICWORLD/V1')
         else:
           return None
 
@@ -349,15 +362,19 @@ class CordobaDataPreprocessor:
         if source == CordobaDataSource.SENTINEL2:
             filter_cloud = \
                 ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', self.max_cloud_coverage)
+            dataset = dataset.filter(filter_cloud)
         elif source == CordobaDataSource.LANDSAT8:
             filter_cloud = \
                 ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
+            dataset = dataset.filter(filter_cloud)
         elif source == CordobaDataSource.LANDSAT5:
             filter_cloud = \
                 ee.Filter.lt('CLOUD_COVER', self.max_cloud_coverage)
+            dataset = dataset.filter(filter_cloud)
+        elif source == CordobaDataSource.DYNAMIC_WORLD:
+            pass
         else:
           return None
-        dataset = dataset.filter(filter_cloud)
 
         # Loop to search a date range around the required date which includes
         # at least one image
@@ -406,8 +423,6 @@ class CordobaDataPreprocessor:
         area_bounding = area.to_ee_rectangle()
 
         # Composite all images into a single one using the median of all values
-        # (don't know why but the .clip() is necessary, else we get a
-        # "Unable to compute bounds for geometry" in getDownloadUrl())
         # To improve results use a mask to exclude clouds when calculating
         # the median
         if dataset_range.size().getInfo() > 1:
@@ -416,11 +431,13 @@ class CordobaDataPreprocessor:
                 sys.stdout.flush()
             if self.flag_cloud_filtering:
                 if source == CordobaDataSource.SENTINEL2:
-                    ee_image = dataset_range.map(mask_clouds_sentinel).median() #.clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_sentinel).median()
                 elif source == CordobaDataSource.LANDSAT8:
-                    ee_image = dataset_range.map(mask_clouds_landsat).median() #.clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_landsat).median()
                 elif source == CordobaDataSource.LANDSAT5:
-                    ee_image = dataset_range.map(mask_clouds_landsat).median() #.clip(area_bounding)
+                    ee_image = dataset_range.map(mask_clouds_landsat).median()
+                elif source == CordobaDataSource.DYNAMIC_WORLD:
+                    ee_image = dataset_range.map(mask_clouds_landsat).median()
             else:
                 ee_image = dataset_range.median().clip(area_bounding)
         else:
@@ -624,10 +641,11 @@ class CordobaDataPreprocessor:
                     if self.flag_verbose:
                         print("remote preprocessing...")
                         sys.stdout.flush()
-                    ee_image = self.preprocess_gaussian_blur(ee_image)
-                    ee_image = self.preprocess_ndvi(ee_image)
-                    ee_image = self.preprocess_ndbi(ee_image)
-                    ee_image = self.preprocess_evi(ee_image)
+                    if self.data_source != CordobaDataSource.DYNAMIC_WORLD:
+                        ee_image = self.preprocess_gaussian_blur(ee_image)
+                        ee_image = self.preprocess_ndvi(ee_image)
+                        ee_image = self.preprocess_ndbi(ee_image)
+                        ee_image = self.preprocess_evi(ee_image)
 
                     # Convert the ee.image into a CordobaImage
                     if self.flag_verbose:
@@ -669,21 +687,29 @@ class CordobaDataPreprocessor:
         elif source == CordobaDataSource.LANDSAT5:
             # No swir band, used the nir band instead
             bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "SR_B4", "ndvi", "ndbi", "evi"]
+        elif source == CordobaDataSource.DYNAMIC_WORLD:
+            bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
         if include_processed:
             return bands
         else:
-            return bands[:5]
+            if source == CordobaDataSource.DYNAMIC_WORLD:
+                return bands
+            else:
+                return bands[:5]
 
     def get_bands_name(self, include_processed: bool) -> List[str]:
         """
         Return the list of bands name.
         include_processed: if true, include the processed bands
         """
-        bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi"]
-        if include_processed:
-            return bands
+        if self.data_source == CordobaDataSource.DYNAMIC_WORLD:
+            return ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
         else:
-            return bands[:5]
+            bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi"]
+            if include_processed:
+                return bands
+            else:
+                return bands[:5]
 
     def download_numpy_data(self, ee_image: ee.Image, area: LongLatBBox) -> numpy.array:
         """
@@ -718,10 +744,11 @@ class CordobaDataPreprocessor:
             return numpy.vstack((chunk_up, chunk_down))
         else:
             area_bounding = area.to_ee_rectangle()
+            bands_name = self.get_bands_name(True)
             if self.flag_verbose:
                 print(f"download...({area})")
+                print(f"bands...({bands_name})")
                 sys.stdout.flush()
-            bands_name = self.get_bands_name(True)
             """
             # Should work and is cleaner thant getDownloadUrl but, it returns
             # different geometries for the same area_bounding, give up
@@ -733,6 +760,9 @@ class CordobaDataPreprocessor:
             data_bands = ee.data.computePixels(request)
             """
             try:
+                # Apply a mercator projection ("EPSG:3395") to convert the data
+                # to a 2D array
+                # (it's possible to also get GeoTIFF format here)
                 url = ee_image.getDownloadUrl({
                     'bands': bands_name,
                     'region': area_bounding,
@@ -772,8 +802,6 @@ class CordobaDataPreprocessor:
             acquisition_date = date
         
         # Convert the bands data to a numpy array
-        # (it's possible to also get GeoTIFF format here)
-        # Apply a mercator projection to convert the data to a 2D array
         data_bands = self.download_numpy_data(ee_image, area)
 
         # Get the dimensions of the image
@@ -796,17 +824,18 @@ class CordobaDataPreprocessor:
             sys.stdout.flush()
         # On large image, requesting the mean ndvi on server side is too heavy.
         # Do it locally instead.
-        #image.mean_ndvi = self.get_mean_ndvi(ee_image, area_bounding)
-        image.mean_ndvi = image.get_mean_ndvi()
-        if self.flag_verbose:
-            print(f"mean ndvi: {image.mean_ndvi}")
-            sys.stdout.flush()
+        if self.data_source != CordobaDataSource.DYNAMIC_WORLD:
+            #image.mean_ndvi = self.get_mean_ndvi(ee_image, area_bounding)
+            image.mean_ndvi = image.get_mean_ndvi()
+            if self.flag_verbose:
+                print(f"mean ndvi: {image.mean_ndvi}")
+                sys.stdout.flush()
 
-        # Apply dark object correction
-        if self.flag_verbose:
-            print("dark object correction...")
-            sys.stdout.flush()
-        image.dark_object_correction()
+            # Apply dark object correction
+            if self.flag_verbose:
+                print("dark object correction...")
+                sys.stdout.flush()
+            image.dark_object_correction()
 
         # Return the result image
         return image

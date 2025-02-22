@@ -15,8 +15,8 @@ preprocessor = \
     CordobaDataPreprocessor(gee_account, gee_credentials_path, online=True)
 
 # Select the data source
-#preprocessor.data_source = CordobaDataSource.SENTINEL2
-preprocessor.data_source = CordobaDataSource.AUTO
+preprocessor.data_source = CordobaDataSource.DYNAMIC_WORLD
+#preprocessor.data_source = CordobaDataSource.AUTO
 #preprocessor.max_cloud_coverage = 50.0
 #preprocessor.flag_cloud_filtering = True
 
@@ -97,6 +97,26 @@ def test_search_period(areas, area_lbls, days, min_interval):
         dates = preprocessor.get_best_acquisition_dates(days[0], days[1], area, min_interval)
         print(f"{dates}")
 
+
+def test_dynamic_world(areas, area_lbls, days):
+
+    # Loop on areas of interest
+    for i_area, area in enumerate(areas):
+        print(f"=== {area_lbls[i_area]}")
+
+        # Get the images
+        images = preprocessor.get_satellite_data(days, area)
+
+        # For each image
+        for i_image in range(len(images)):
+            print(f"{images[i_image]}")
+
+            # Save the mask for forest to a png file
+            rgb = images[i_image].to_dynamic_world_mask("trees")
+            path_trees = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_trees.png"
+            print(f"save image to {path_trees}")
+            Image.fromarray(rgb).save(path_trees)
+
 # Areas of interest
 area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
 area_los_medanitos = LongLatBBox(-65.7, -65.6, -31.6, -31.5)
@@ -128,6 +148,8 @@ min_interval = 90
 preprocessor.nb_max_step_search = 1
 preprocessor.step_search_image = min_interval / 4
 preprocessor.max_cloud_coverage = 25.0
-dates_of_interest = preprocessor.get_best_acquisition_dates(period_of_interest[0], period_of_interest[1], areas[0], min_interval)
-test_analyse_period(areas, area_lbls, dates_of_interest)
+#dates_of_interest = preprocessor.get_best_acquisition_dates(period_of_interest[0], period_of_interest[1], areas[0], min_interval)
+#test_analyse_period(areas, area_lbls, dates_of_interest)
 
+dates_of_interest = days_chaco_deforest_01
+test_dynamic_world(areas, area_lbls, dates_of_interest)

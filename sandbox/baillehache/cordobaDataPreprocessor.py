@@ -179,10 +179,19 @@ class CordobaImage:
         """
         Convert a CordobaImage into a mask for a given band
         Return the mask as a numpy array.
-        Pixel values in [0,255], 1 channel. 0 is 'not matching', 1 is 'matching'.
+        Pixel values in [0,255], 1 channel. 0 is 'not matching', 255 is
+        'matching'.
         """
-        # TODO max prob instead of constant 0.5
-        return ((self.bands[band] > 0.5) * 255.0).astype(numpy.uint8)
+        # List of relevant bands label
+        lbl_bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
+        # Index of the requested band
+        i_band = lbl_bands.index(band)
+        # List of numpy arrays fo each relevant bands
+        all_bands = list(map(lambda x: self.bands[x], lbl_bands))
+        # Create a boolean mask of array values for which the highest
+        # probability among relevant bands is the one of the requested band,
+        # and convert the mask value into a [0,255] integers
+        return ((numpy.argmax(all_bands, axis=0) == i_band) * 255.0).astype(numpy.uint8)
 
     def get_mean_ndvi(self) -> float:
         return numpy.mean(self.bands["ndvi"])
@@ -705,6 +714,8 @@ class CordobaDataPreprocessor:
         if self.data_source == CordobaDataSource.DYNAMIC_WORLD:
             return ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
         else:
+            # TODO add ndmi
+            # https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndmi/
             bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi"]
             if include_processed:
                 return bands
@@ -818,13 +829,14 @@ class CordobaDataPreprocessor:
                 data_bands[:, :][bands_name[band_idx]]
             #    data_bands[bands_name[band_idx]][:, :]
 
-        # Set the mean ndvi of the image
-        if self.flag_verbose:
-            print("compute mean ndvi...")
-            sys.stdout.flush()
-        # On large image, requesting the mean ndvi on server side is too heavy.
-        # Do it locally instead.
         if self.data_source != CordobaDataSource.DYNAMIC_WORLD:
+            # Set the mean ndvi of the image
+            if self.flag_verbose:
+                print("compute mean ndvi...")
+                sys.stdout.flush()
+            # On large image, requesting the mean ndvi on server side is too
+            # heavy.
+            # Do it locally instead.
             #image.mean_ndvi = self.get_mean_ndvi(ee_image, area_bounding)
             image.mean_ndvi = image.get_mean_ndvi()
             if self.flag_verbose:

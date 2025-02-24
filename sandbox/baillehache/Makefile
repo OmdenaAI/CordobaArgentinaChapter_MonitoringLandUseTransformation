@@ -15,4 +15,4 @@ runApp:
 	flask --app cordobaApp --debug run
 
 cleanResult:
-	\rm Data/*.png
+	rm -f Data/*.png

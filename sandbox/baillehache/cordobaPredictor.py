@@ -101,3 +101,11 @@ class CordobaPredictor:
         out = (out[0, 0] * 255).astype(numpy.uint8)
         out = cv2.resize(out, [original_shape[1], original_shape[0]])
         return out
+
+    def predictChangeVectorAnalysis(self, images: List[CordobaImage]) -> numpy.array:
+        """
+        Detect difference in vegetation using two images of the same area at
+        two times. Use Change Vector Analysis.
+        images: the two images
+        Return a numpy array
+        """

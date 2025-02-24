@@ -56,7 +56,7 @@ def create_composite_DW(date: str, range_days: int, roi: ee.Geometry.Polygon) ->
     dynamic_merged = ee.ImageCollection(dynamic_merged)
     composite = dynamic_merged.median()
     
-    return composite
+    return composite  
 
 
 def create_composite_S2(date: str, range_days: int, roi: ee.Geometry.Polygon, clear_threshold: float = 0.6) -> ee.Image:
@@ -215,6 +215,7 @@ def threshold_optimization(magnitude, class_t1, class_t2, roi, scale,
             improved = True
     
     return best_threshold, best_Lk
+
 
 def compute_Lk(magnitude, class_t1, class_t2, threshold, roi, scale):
     """
@@ -394,3 +395,94 @@ def remove_small_objects(binary_img, min_size, connectivity=8):
     # Create a mask: only keep regions where the component size is greater or equal to min_size
     filtered = binary_img.updateMask(component_size.gte(min_size))
     return filtered
+
+def create_index_mask(image1: ee.Image, 
+                   image2: ee.Image, 
+                   index: str="dNDVI", 
+                   threshold: float=0,
+                   greater_than: bool=False) -> ee.Image:
+    """
+    Create a binary mask to an image based on a threshold value of the difference of an index between two images.
+
+    Args:
+      image1 (ee.Image): The first input image.
+      image2 (ee.Image): The second input image.
+      index (str): The index to use for thresholding. Default is "NDVI". Other
+                    options are "dNDWI", "dNBR", "dSAVI", "dNDMI".
+      threshold (float): The threshold value for the index difference. Default is 0.
+      greater_than (bool): If True, the mask will be True where the index difference is greater than the threshold.
+                           If False, the mask will be True where the index difference is less than or equal to the threshold.
+                           Default is False.
+    
+    Returns:
+      ee.Image: A binary mask image based on the index difference threshold.
+    """
+
+    # Compute the index value for the first image
+    if index == "dNDVI":
+        index_value1 = image1.normalizedDifference(['B8', 'B4'])
+        index_value2 = image2.normalizedDifference(['B8', 'B4'])
+
+    elif index == "dNDWI":        
+        index_value1 = image1.normalizedDifference(['B3', 'B8'])
+        index_value2 = image2.normalizedDifference(['B3', 'B8'])
+    
+    elif index == "dNBR":
+        index_value1 = image1.normalizedDifference(['B8', 'B12'])
+        index_value2 = image2.normalizedDifference(['B8', 'B12'])
+    
+    elif index == "dSAVI":
+        index_value1 = image1.expression(
+            '1.5 * (NIR - RED) / (NIR + RED + 0.5)', 
+            {'NIR': image1.select('B8'), 'RED': image1.select('B4')}
+        )
+        index_value2 = image2.expression(
+            '1.5 * (NIR - RED) / (NIR + RED + 0.5)', 
+            {'NIR': image2.select('B8'), 'RED': image2.select('B4')}
+        )
+    
+    elif index == "dNDMI":
+        index_value1 = image1.normalizedDifference(['B8', 'B11'])
+        index_value2 = image2.normalizedDifference(['B8', 'B11'])
+    
+    else:
+        raise ValueError(f"Invalid index: {index}")
+    
+    # Compute the difference of the index values
+    index_diff = index_value2.subtract(index_value1)
+    
+    # Create a binary mask based on the index difference threshold
+    if greater_than:
+        mask = index_diff.gt(threshold).rename('index_mask')
+    else:
+        mask = index_diff.lte(threshold).rename('index_mask')
+
+    return mask
+
+
+def dilate_mask(mask: ee.Image, radius: int = 1) -> ee.Image:
+    """
+    Dilate a binary mask using a specified radius.
+
+    Args:
+      mask (ee.Image): The binary mask to dilate.
+      radius (int): The radius for the dilation operation. Default is 1.
+    
+    Returns:
+      ee.Image: The dilated binary mask.
+    """
+    return mask.focal_max(radius, 'square', 'pixels')
+
+
+def erode_mask(mask: ee.Image, radius: int = 1) -> ee.Image:
+    """
+    Erode a binary mask using a specified radius.
+
+    Args:
+      mask (ee.Image): The binary mask to erode.
+      radius (int): The radius for the erosion operation. Default is 1.
+    
+    Returns:
+      ee.Image: The eroded binary mask.
+    """
+    return mask.focal_min(radius, 'square', 'pixels')

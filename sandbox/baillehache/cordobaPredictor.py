@@ -157,7 +157,7 @@ class CordobaPredictor:
         # Iterate until convergence or maximum number of step
         iteration = 0
         has_converged = False
-        while iteration < max_iteration and has_converged is False:
+        while (iteration < max_iteration) and (has_converged == False):
             iteration += 1
             
             # Create a list of candidate thresholds
@@ -208,7 +208,7 @@ class CordobaPredictor:
         Image.fromarray((target_T2*255.0).astype(numpy.uint8)).save("/tmp/trees_T2.png")
         
         # Get the mask of difference between the target class at T1 and T2
-        mask_delta_target = (target_T1 & numpy.invert(target_T2))
+        mask_delta_target = (target_T1 & numpy.logical_not(target_T2))
         #mask_delta_target = (target_T2 == target_T1)
         Image.fromarray((mask_delta_target*255.0).astype(numpy.uint8)).save("/tmp/mask_delta_trees_T2.png")
 

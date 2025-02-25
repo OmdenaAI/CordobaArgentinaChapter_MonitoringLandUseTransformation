@@ -10,6 +10,9 @@ import sys
 import math
 import datetime
 
+# List of bands name in the dynamic world dataset
+dynamic_world_bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
+
 class CordobaDataSource(Enum):
     """
     Enumeration to identify the available image sources
@@ -182,12 +185,8 @@ class CordobaImage:
         Pixel values in [0,255], 1 channel. 0 is 'not matching', 255 is
         'matching'.
         """
-        # List of relevant bands label
-        lbl_bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
         # Index of the requested band
-        i_band = lbl_bands.index(band)
-        # List of numpy arrays fo each relevant bands
-        all_bands = list(map(lambda x: self.bands[x], lbl_bands))
+        i_band = dynamic_world_bands.index(lbl_band)
         # Create a boolean mask of array values for which the highest
         # probability among relevant bands is the one of the requested band,
         # and convert the mask value into a [0,255] integers
@@ -706,7 +705,7 @@ class CordobaDataPreprocessor:
             # No swir band, used the nir band instead
             bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "SR_B4", "ndvi", "ndbi", "evi", "ndmi"]
         elif source == CordobaDataSource.DYNAMIC_WORLD:
-            bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
+            bands = dynamic_world_bands
         if include_processed:
             return bands
         else:
@@ -721,7 +720,7 @@ class CordobaDataPreprocessor:
         include_processed: if true, include the processed bands
         """
         if self.data_source == CordobaDataSource.DYNAMIC_WORLD:
-            return ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
+            return dynamic_world_bands
         else:
             bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi", "ndmi"]
             if include_processed:

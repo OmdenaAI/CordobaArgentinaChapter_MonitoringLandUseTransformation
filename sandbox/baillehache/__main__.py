@@ -76,7 +76,7 @@ def test_analyse_period(areas, area_lbls, days):
 
                     # Predict the deforestation relative to the previous image
                     # using PCA/KMeans
-                    deforest_image = predictor.predictPcaKMeanClustering(
+                    deforest_image = predictor.predict_pca_kmean_clustering(
                         [images[i_image-1], images[i_image]])
                     path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_pca_kmeans.png"
                     print(f"save image to {path_deforest}")
@@ -85,7 +85,7 @@ def test_analyse_period(areas, area_lbls, days):
                     # Predict the deforestation relative to the previous image
                     # using FCCDN
                     """
-                    deforest_image = predictor.predictFCCDN(
+                    deforest_image = predictor.predict_FCCDN(
                         [images[i_image-1], images[i_image]])
                     path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_fccdn.png"
                     print(f"save image to {path_deforest}")
@@ -110,24 +110,59 @@ def test_search_period(areas, area_lbls, days, min_interval):
 def test_dynamic_world(areas, area_lbls, days):
 
     # Select the data source
-    preprocessor.data_source = CordobaDataSource.DYNAMIC_WORLD
+
+    # Create a predictor
+    predictor = CordobaPredictor()
 
     # Loop on areas of interest
     for i_area, area in enumerate(areas):
         print(f"=== {area_lbls[i_area]}")
 
-        # Get the images
+        # Get the satellite images
+        preprocessor.data_source = CordobaDataSource.AUTO
         images = preprocessor.get_satellite_data(days, area)
+
+        # Get the dynamic world data
+        preprocessor.data_source = CordobaDataSource.DYNAMIC_WORLD
+        dynamic_world_class = preprocessor.get_satellite_data(days, area)
 
         # For each image
         for i_image in range(len(images)):
             print(f"{images[i_image]}")
 
-            # Save the mask for forest to a png file
-            rgb = images[i_image].to_dynamic_world_mask("trees")
-            path_trees = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_trees.png"
-            print(f"save image to {path_trees}")
-            Image.fromarray(rgb).save(path_trees)
+            # Save the RGB bands to a png file
+            rgb = images[i_image].to_rgb(gamma=0.66)
+            path_rgb = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_rgb.png"
+            print(f"save image to {path_rgb}")
+            Image.fromarray(rgb).save(path_rgb)
+
+            # From the second image
+            if i_image > 0:
+
+                # Predict the deforestation relative to the previous image
+                # using dynamic world only
+                deforest_mask = predictor.predict_dynamic_world(
+                    [dynamic_world_class[i_image-1], dynamic_world_class[i_image]],
+                    "trees")
+                img = Image.fromarray((deforest_mask*255.0).astype(numpy.uint8))
+                path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_dw.png"
+                print(f"save image to {path_deforest}")
+                img.save(path_deforest)
+
+                # Predict the deforestation relative to the previous image
+                # using CVAPPS
+                #lbl_bands = ['red', 'green', 'blue', 'nir', 'swir', 'ndvi', 'ndbi', 'evi', 'ndmi']
+                lbl_bands = ['ndbi']
+                deforest_mask = predictor.predict_CVA(
+                    [images[i_image-1], images[i_image]],
+                    lbl_bands,
+                    [dynamic_world_class[i_image-1], dynamic_world_class[i_image]],
+                    "trees")
+                img = Image.fromarray((deforest_mask*255.0).astype(numpy.uint8))
+                path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_cva.png"
+                print(f"save image to {path_deforest}")
+                img.save(path_deforest)
+
 
 # Areas of interest
 area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
@@ -162,7 +197,7 @@ preprocessor.step_search_image = min_interval / 4
 preprocessor.max_cloud_coverage = 25.0
 #dates_of_interest = preprocessor.get_best_acquisition_dates(period_of_interest[0], period_of_interest[1], areas[0], min_interval)
 dates_of_interest = days_chaco_deforest_01
-test_analyse_period(areas, area_lbls, dates_of_interest)
+#test_analyse_period(areas, area_lbls, dates_of_interest)
 
-#dates_of_interest = days_chaco_deforest_01
-#test_dynamic_world(areas, area_lbls, dates_of_interest)
+dates_of_interest = days_chaco_deforest_01
+test_dynamic_world(areas, area_lbls, dates_of_interest)

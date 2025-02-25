@@ -178,19 +178,32 @@ class CordobaImage:
         # Return the result image
         return image
 
-    def to_dynamic_world_mask(self, band: str) -> numpy.array:
+    def to_dynamic_world_mask(self, lbl_band: str) -> numpy.array:
         """
         Convert a CordobaImage into a mask for a given band
-        Return the mask as a numpy array.
-        Pixel values in [0,255], 1 channel. 0 is 'not matching', 255 is
+        lbl_band: requested band name (same as class in dynamic world case)
+        Return the mask as a boolean numpy array.
         'matching'.
         """
         # Index of the requested band
         i_band = dynamic_world_bands.index(lbl_band)
         # Create a boolean mask of array values for which the highest
-        # probability among relevant bands is the one of the requested band,
-        # and convert the mask value into a [0,255] integers
-        return ((numpy.argmax(all_bands, axis=0) == i_band) * 255.0).astype(numpy.uint8)
+        # probability among relevant bands is the one of the requested band
+        return (numpy.argmax(list(self.bands.values()), axis=0) == i_band)
+
+    def get_bands_as_vectors(self, lbl_bands: List[str]=None) -> numpy.array:
+        """
+        Convert the CordobaImage into a numpy array of vectors. Each vector
+        contains the values of bands for the respective pixel.
+        lbl_bands: list of bands name used, if None all bands are used
+        Return a numpy array.
+        """
+        # Set the bands to all bands if none were provided
+        if lbl_bands is None:
+            lbl_bands = self.bands.keys()
+        # Return the concatenation of bands values
+        bands = list(map(lambda x: self.bands[x], lbl_bands))
+        return numpy.dstack(bands)
 
     def get_mean_ndvi(self) -> float:
         return numpy.mean(self.bands["ndvi"])

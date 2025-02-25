@@ -24,7 +24,7 @@ area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
 
 Class to manipulate bands data of an AOI at a given date.
 
-Available bands are: "red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi"
+Available bands are: "red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi", "ndmi"
 
 Properties:
 * `date`: approximate acquisition date (image data may be a composite of data acquired at several date), as a string in "YYYY-MM-DD" format
@@ -37,6 +37,7 @@ Bands raw data need to be converted to be used by predicition models or as image
 ```
 image.to_rgb()
 image.to_ndvi()
+image.to_ndmi()
 image.to_evi()
 image.to_ndbi()
 ```

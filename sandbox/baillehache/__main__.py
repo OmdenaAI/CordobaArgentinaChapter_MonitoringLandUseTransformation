@@ -14,18 +14,17 @@ gee_credentials_path = "../../../earthengine_api_key.json"
 preprocessor = \
     CordobaDataPreprocessor(gee_account, gee_credentials_path, online=True)
 
-# Select the data source
-preprocessor.data_source = CordobaDataSource.DYNAMIC_WORLD
-#preprocessor.data_source = CordobaDataSource.AUTO
-#preprocessor.max_cloud_coverage = 50.0
-#preprocessor.flag_cloud_filtering = True
-
-print(f"image resolution: {preprocessor.resolution}m/px")
-
-# Create a predictor
-predictor = CordobaPredictor()
 
 def test_analyse_period(areas, area_lbls, days):
+
+    # Select the data source
+    preprocessor.data_source = CordobaDataSource.AUTO
+    #preprocessor.max_cloud_coverage = 50.0
+    #preprocessor.flag_cloud_filtering = True
+    print(f"image resolution: {preprocessor.resolution}m/px")
+
+    # Create a predictor
+    predictor = CordobaPredictor()
 
     # Loop on areas of interest
     for i_area, area in enumerate(areas):
@@ -62,6 +61,12 @@ def test_analyse_period(areas, area_lbls, days):
             print(f"save image to {path_ndbi}")
             Image.fromarray(ndbi).save(path_ndbi)
 
+            # Save the NDMI band to a png file
+            ndmi = images[i_image].to_ndmi()
+            path_ndmi = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_ndmi.png"
+            print(f"save image to {path_ndmi}")
+            Image.fromarray(ndmi).save(path_ndmi)
+
             # From the second image
             if i_image > 0:
 
@@ -89,6 +94,10 @@ def test_analyse_period(areas, area_lbls, days):
 
 
 def test_search_period(areas, area_lbls, days, min_interval):
+
+    # Select the data source
+    preprocessor.data_source = CordobaDataSource.AUTO
+
     # Loop on areas of interest
     for i_area, area in enumerate(areas):
         print(f"=== {area_lbls[i_area]}")
@@ -99,6 +108,9 @@ def test_search_period(areas, area_lbls, days, min_interval):
 
 
 def test_dynamic_world(areas, area_lbls, days):
+
+    # Select the data source
+    preprocessor.data_source = CordobaDataSource.DYNAMIC_WORLD
 
     # Loop on areas of interest
     for i_area, area in enumerate(areas):
@@ -149,7 +161,8 @@ preprocessor.nb_max_step_search = 1
 preprocessor.step_search_image = min_interval / 4
 preprocessor.max_cloud_coverage = 25.0
 #dates_of_interest = preprocessor.get_best_acquisition_dates(period_of_interest[0], period_of_interest[1], areas[0], min_interval)
-#test_analyse_period(areas, area_lbls, dates_of_interest)
-
 dates_of_interest = days_chaco_deforest_01
-test_dynamic_world(areas, area_lbls, dates_of_interest)
+test_analyse_period(areas, area_lbls, dates_of_interest)
+
+#dates_of_interest = days_chaco_deforest_01
+#test_dynamic_world(areas, area_lbls, dates_of_interest)

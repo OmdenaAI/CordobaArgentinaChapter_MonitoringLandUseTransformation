@@ -204,10 +204,18 @@ class CordobaImage:
         """
         return self.to_grey_scale("ndvi")
 
+    def to_ndmi(self) -> numpy.array:
+        """
+        Convert a CordobaImage into a NDMI array
+        Return the NDMI as a numpy array.
+        Pixel values in [0,255], 3 channels. NDMI band normalised.
+        """
+        return self.to_grey_scale("ndmi")
+
     def to_ndbi(self) -> numpy.array:
         """
         Convert a CordobaImage into a NDBI array
-        Return the NDVI as a numpy array.
+        Return the NDBI as a numpy array.
         Pixel values in [0,255], 3 channels. NDBI band normalised.
         """
         return self.to_grey_scale("ndbi")
@@ -655,6 +663,7 @@ class CordobaDataPreprocessor:
                         ee_image = self.preprocess_ndvi(ee_image)
                         ee_image = self.preprocess_ndbi(ee_image)
                         ee_image = self.preprocess_evi(ee_image)
+                        ee_image = self.preprocess_ndmi(ee_image)
 
                     # Convert the ee.image into a CordobaImage
                     if self.flag_verbose:
@@ -690,12 +699,12 @@ class CordobaDataPreprocessor:
         """
         bands = []
         if source == CordobaDataSource.SENTINEL2:
-            bands = ["B4", "B3", "B2", "B8", "B11", "ndvi", "ndbi", "evi"]
+            bands = ["B4", "B3", "B2", "B8", "B11", "ndvi", "ndbi", "evi", "ndmi"]
         elif source == CordobaDataSource.LANDSAT8:
-            bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "SR_B6", "ndvi", "ndbi", "evi"]
+            bands = ["SR_B4", "SR_B3", "SR_B2", "SR_B5", "SR_B6", "ndvi", "ndbi", "evi", "ndmi"]
         elif source == CordobaDataSource.LANDSAT5:
             # No swir band, used the nir band instead
-            bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "SR_B4", "ndvi", "ndbi", "evi"]
+            bands = ["SR_B3", "SR_B2", "SR_B1", "SR_B4", "SR_B4", "ndvi", "ndbi", "evi", "ndmi"]
         elif source == CordobaDataSource.DYNAMIC_WORLD:
             bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
         if include_processed:
@@ -714,9 +723,7 @@ class CordobaDataPreprocessor:
         if self.data_source == CordobaDataSource.DYNAMIC_WORLD:
             return ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
         else:
-            # TODO add ndmi
-            # https://custom-scripts.sentinel-hub.com/custom-scripts/sentinel-2/ndmi/
-            bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi"]
+            bands = ["red", "green", "blue", "nir", "swir", "ndvi", "ndbi", "evi", "ndmi"]
             if include_processed:
                 return bands
             else:
@@ -870,6 +877,25 @@ class CordobaDataPreprocessor:
 
         # Add the NDVI values to the image as a new band
         return image.addBands(ndvi)
+
+    def preprocess_ndmi(self, image: ee.Image) -> ee.Image:
+        """
+        Add a 'ndmi' band to the ee.Image and calculate its value based
+        on other bands
+        image: the image to be preprocessed
+        Return the preprocessed image.
+        """
+        if self.flag_verbose:
+            print("NDMI...")
+            sys.stdout.flush()
+
+        # Calculate the NDVI values
+        bands = {"nir" : image.select("nir"), "swir" : image.select("swir")}
+        ndmi = \
+            image.expression("(nir - swir) / (nir + swir)", bands).rename("ndmi")
+
+        # Add the NDMI values to the image as a new band
+        return image.addBands(ndmi)
 
     def get_mean_ndvi(self, image: ee.Image, area_bounding: ee.Geometry.Rectangle) -> float:
         """

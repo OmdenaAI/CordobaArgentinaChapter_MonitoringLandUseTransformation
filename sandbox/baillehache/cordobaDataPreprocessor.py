@@ -438,10 +438,17 @@ class CordobaDataPreprocessor:
         # Convert the area of interest to a ee.GeometryRectangle
         area_bounding = area.to_ee_rectangle()
 
-        # Composite all images into a single one using the median of all values
-        # To improve results use a mask to exclude clouds when calculating
-        # the median
-        if dataset_range.size().getInfo() > 1:
+        # If the source is dynamic world, use the most frequent class over
+        # images
+        if source == CordobaDataSource.DYNAMIC_WORLD:
+            if self.flag_verbose:
+                print(f"mode composite of {dataset_range.size().getInfo()} images...")
+                sys.stdout.flush()
+            ee_image = dataset_range.mode().clip(area_bounding)
+        # Else, composite all images into a single one using the median of all
+        # values. To improve results use a mask to exclude clouds when
+        # calculating the median.
+        elif dataset_range.size().getInfo() > 1:
             if self.flag_verbose:
                 print(f"median composite of {dataset_range.size().getInfo()} images...")
                 sys.stdout.flush()
@@ -451,8 +458,6 @@ class CordobaDataPreprocessor:
                 elif source == CordobaDataSource.LANDSAT8:
                     ee_image = dataset_range.map(mask_clouds_landsat).median()
                 elif source == CordobaDataSource.LANDSAT5:
-                    ee_image = dataset_range.map(mask_clouds_landsat).median()
-                elif source == CordobaDataSource.DYNAMIC_WORLD:
                     ee_image = dataset_range.map(mask_clouds_landsat).median()
             else:
                 ee_image = dataset_range.median().clip(area_bounding)

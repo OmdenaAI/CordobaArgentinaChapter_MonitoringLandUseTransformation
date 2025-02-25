@@ -22,12 +22,12 @@ class CordobaPredictor:
         """
         pass
 
-    def predictPcaKMeanClustering(self, images: List[CordobaImage]) -> numpy.array:
+    def predict_pca_kmean_clustering(self, images: List[CordobaImage]) -> numpy.array:
         """
         Detect difference in vegetation using two images of the same area at
         two times. Use PCA and KMeans.
         images: the two images
-        Return a numpy array
+        Return the segmented image as a 2D uint8 numpy array
         """
         # Calculate the difference of the NDVI between the two images
         ndvi_diff = images[1].bands["ndvi"] - images[0].bands["ndvi"]
@@ -51,10 +51,10 @@ class CordobaPredictor:
 
         # Create he result image
         clustered_image_result = \
-            (clustered_image * (255 / clustered_image.max())).astype(numpy.uint8)
+            (clustered_image * (255.0 / clustered_image.max())).astype(numpy.uint8)
         return clustered_image_result
 
-    def predictFCCDN(self, images: List[CordobaImage]) -> numpy.array:
+    def predict_FCCDN(self, images: List[CordobaImage]) -> numpy.array:
         """
         Detect difference in vegetation using two images of the same area at
         two times. Use FCCD neural network.

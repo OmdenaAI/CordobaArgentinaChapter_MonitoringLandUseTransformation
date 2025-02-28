@@ -183,24 +183,32 @@ class CordobaImage:
         # Return the result image
         return image
 
-    def to_dynamic_world_mask(self, class_lbl: str) -> numpy.array:
+    def to_dynamic_world_mask(self, class_lbl: str, threshold: float=0.0) -> numpy.array:
         """
         Convert a CordobaImage into a mask for a given band
         class_lbl: class for wich we want the mask
+        threshold: minimum probability
         Return the mask as a boolean numpy array.
         """
         # Index of the requested band
         i_band = dynamic_world_bands.index(class_lbl)
         # If the image's source is a dynamic word
         if self.source == CordobaDataSource.DYNAMIC_WORLD:
-            # Create a boolean mask of array values for which the highest
-            # probability among relevant bands is the one of the requested band
-            return (numpy.argmax(list(self.bands.values()), axis=0) == i_band)
+            values = list(self.bands.values())
         # Else, the image has a satellite source
         else:
-            # Create a boolean mask of class values for which the highest
-            # probability among classes is the one of the requested class
-            return (numpy.argmax(list(self.classes.values()), axis=0) == i_band)
+            values = list(self.classes.values())
+        # Create a boolean mask of class values for which the highest
+        # probability among classes is the one of the requested class
+        mask = (numpy.argmax(values, axis=0) == i_band)
+        # Apply the threshold
+        if self.source == CordobaDataSource.DYNAMIC_WORLD:
+            threshold_mask = (self.bands[class_lbl] > threshold)
+        else:
+            threshold_mask = (self.classes[class_lbl] > threshold)
+        mask = mask & threshold_mask
+        # Return the mask
+        return mask
 
     def get_bands_as_vectors(self, lbl_bands: List[str]=None) -> numpy.array:
         """

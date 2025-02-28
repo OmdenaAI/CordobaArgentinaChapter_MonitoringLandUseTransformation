@@ -232,21 +232,23 @@ class CordobaPredictor:
         # changes based on magnitude
         # TODO
 
-    def predict_dynamic_world(self, images: List[CordobaImage], target_class: str) -> numpy.array:
+    def predict_dynamic_world(self, images: List[CordobaImage], target_class: str, threshold_mask=0.0) -> numpy.array:
         """
         Detect change using two images of the same area at two different times
         using dynamic world classification.
         images: the two dynamic world classification images
         target_class: the class in dynamic world classes for which we search
         change
+        threshold_mask: minimum probabilities (level of confidence) needed to
+        assume a pixel is really in the class DW tells us it is
         Return the mask as a boolean numpy array, the mask of pixels which were
         classified as target_class in the first image and as something else
         in the second image.
         """
         
         # Get the masks for the target class at T1 and T2
-        target_T1 = images[0].to_dynamic_world_mask(target_class)
-        target_T2 = images[1].to_dynamic_world_mask(target_class)
+        target_T1 = images[0].to_dynamic_world_mask(target_class, threshold_mask)
+        target_T2 = images[1].to_dynamic_world_mask(target_class, 0.0)
 
         # Get the mask of areas containing the target class at T1 but not at T2
         mask_delta_target = (target_T1 & numpy.logical_not(target_T2))

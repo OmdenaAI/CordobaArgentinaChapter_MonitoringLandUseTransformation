@@ -14,8 +14,6 @@ gee_credentials_path = "../../../earthengine_api_key.json"
 preprocessor = \
     CordobaDataPreprocessor(gee_account, gee_credentials_path, online=True)
 
-
-
 area_jair_01 = LongLatBBox(-63.42803671537233,-63.34916140311282,-30.42050193711671,-30.339391209687783)
 days_jair_01 = ["2021-01-01", "2022-12-31"]
 area_jair_02 = LongLatBBox(-63.02341479977622,-62.940716720052535,-29.87713676641895,-29.800596170529722)
@@ -34,6 +32,12 @@ areas = [area_jair_01, area_jair_02, area_jair_03, area_jair_04, area_jair_05, a
 area_lbls = ["jair_01", "jair_02", "jair_03", "jair_04", "jair_05", "jair_06", "jair_07"]
 days = [days_jair_01, days_jair_02, days_jair_03, days_jair_04, days_jair_05, days_jair_06, days_jair_07]
 
+"""
+areas = [area_jair_01]
+area_lbls = ["jair_01"]
+days = [days_jair_01]
+"""
+
 # Create a predictor
 predictor = CordobaPredictor()
 
@@ -50,6 +54,9 @@ for i_area, area in enumerate(areas):
     preprocessor.data_source = CordobaDataSource.SENTINEL2
     images = preprocessor.get_satellite_data(days[i_area], area)
 
+    # Threhsold confidence for the "trees" mask
+    threshold_mask = 0.33
+
     # For each image
     for i_image in range(len(images)):
         print(f"{images[i_image]}")
@@ -61,7 +68,8 @@ for i_area, area in enumerate(areas):
         Image.fromarray(rgb).save(path_rgb)
 
         # Save the 'trees' mask to a png file
-        tree_mask = (images[i_image].to_dynamic_world_mask("trees")*255.0).astype(numpy.uint8)
+        threshold = [threshold_mask, 0.0][i_image]
+        tree_mask = (images[i_image].to_dynamic_world_mask("trees", threshold)*255.0).astype(numpy.uint8)
         path_tree_mask = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_tree_mask.png"
         print(f"save image to {path_tree_mask}")
         Image.fromarray(tree_mask).save(path_tree_mask)
@@ -73,7 +81,7 @@ for i_area, area in enumerate(areas):
             # using dynamic world only
             deforest_mask = predictor.predict_dynamic_world(
                 [images[i_image-1], images[i_image]],
-                "trees")
+                "trees", threshold_mask)
             img = Image.fromarray((deforest_mask*255.0).astype(numpy.uint8))
             path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_dw.png"
             print(f"save image to {path_deforest}")

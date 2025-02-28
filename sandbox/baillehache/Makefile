@@ -1,6 +1,9 @@
 run:
 	python __main__.py
 
+predictor_dw:
+	python predictor_dw.py
+
 edit:
 	geany Makefile *.py static/*js static/*css templates/*html README.md
 

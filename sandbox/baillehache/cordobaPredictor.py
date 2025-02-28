@@ -183,6 +183,7 @@ class CordobaPredictor:
             has_converged = ((max(Lks) - min(Lks)) < epsilon)
 
         # Return the best threshold
+        print(f"optimal threshold {best_threshold} for Lk {best_Lk}")
         return best_threshold
 
     def predict_CVA(self, images: List[CordobaImage], lbl_bands: List[str], dw_classes: List[CordobaImage], target_class: str) -> numpy.array:
@@ -204,9 +205,6 @@ class CordobaPredictor:
         target_T1 = dw_classes[0].to_dynamic_world_mask(target_class)
         target_T2 = dw_classes[1].to_dynamic_world_mask(target_class)
 
-        Image.fromarray((target_T1*255.0).astype(numpy.uint8)).save("/tmp/trees_T1.png")
-        Image.fromarray((target_T2*255.0).astype(numpy.uint8)).save("/tmp/trees_T2.png")
-        
         # Get the mask of difference between the target class at T1 and T2
         mask_delta_target = (target_T1 & numpy.logical_not(target_T2))
         #mask_delta_target = (target_T2 == target_T1)
@@ -254,5 +252,5 @@ class CordobaPredictor:
         target_T2 = images[1].to_dynamic_world_mask(target_class)
 
         # Get the mask of areas containing the target class at T1 but not at T2
-        mask_delta_target = (target_T1 & numpy.invert(target_T2))
+        mask_delta_target = (target_T1 & numpy.logical_not(target_T2))
         return mask_delta_target

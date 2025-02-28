@@ -107,7 +107,7 @@ def test_search_period(areas, area_lbls, days, min_interval):
         print(f"{dates}")
 
 
-def test_dynamic_world(areas, area_lbls, days):
+def test_cva(areas, area_lbls, days):
 
     # Select the data source
 
@@ -118,13 +118,14 @@ def test_dynamic_world(areas, area_lbls, days):
     for i_area, area in enumerate(areas):
         print(f"=== {area_lbls[i_area]}")
 
-        # Get the satellite images
-        preprocessor.data_source = CordobaDataSource.AUTO
-        images = preprocessor.get_satellite_data(days, area)
+        # Default is 35, set to 60 to match Jair's test
+        #preprocessor.max_cloud_coverage = 60
 
-        # Get the dynamic world data
-        preprocessor.data_source = CordobaDataSource.DYNAMIC_WORLD
-        dynamic_world_class = preprocessor.get_satellite_data(days, area)
+        # Get the satellite images
+        preprocessor.nb_max_step_search = 30
+        preprocessor.step_search_image = 1
+        preprocessor.data_source = CordobaDataSource.SENTINEL2
+        images = preprocessor.get_satellite_data(days[i_area], area)
 
         # For each image
         for i_image in range(len(images)):
@@ -136,28 +137,21 @@ def test_dynamic_world(areas, area_lbls, days):
             print(f"save image to {path_rgb}")
             Image.fromarray(rgb).save(path_rgb)
 
+            # Save the 'trees' mask to a png file
+            tree_mask = (images[i_image].to_dynamic_world_mask("trees")*255.0).astype(numpy.uint8)
+            path_tree_mask = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_tree_mask.png"
+            print(f"save image to {path_tree_mask}")
+            Image.fromarray(tree_mask).save(path_tree_mask)
+
             # From the second image
             if i_image > 0:
 
                 # Predict the deforestation relative to the previous image
-                # using dynamic world only
-                deforest_mask = predictor.predict_dynamic_world(
-                    [dynamic_world_class[i_image-1], dynamic_world_class[i_image]],
-                    "trees")
-                img = Image.fromarray((deforest_mask*255.0).astype(numpy.uint8))
-                path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_dw.png"
-                print(f"save image to {path_deforest}")
-                img.save(path_deforest)
-
-                # Predict the deforestation relative to the previous image
-                # using CVAPPS
+                # using CVA
                 #lbl_bands = ['red', 'green', 'blue', 'nir', 'swir', 'ndvi', 'ndbi', 'evi', 'ndmi']
-                lbl_bands = ['ndbi']
+                lbl_bands = ['ndvi', 'ndbi', 'evi', 'ndmi']
                 deforest_mask = predictor.predict_CVA(
-                    [images[i_image-1], images[i_image]],
-                    lbl_bands,
-                    [dynamic_world_class[i_image-1], dynamic_world_class[i_image]],
-                    "trees")
+                    [images[i_image-1], images[i_image]], lbl_bands, "trees")
                 img = Image.fromarray((deforest_mask*255.0).astype(numpy.uint8))
                 path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_cva.png"
                 print(f"save image to {path_deforest}")
@@ -174,6 +168,25 @@ area_peru_deforest_01 = LongLatBBox(-75.085, -75.035, -8.295, -8.245)
 area_chaco_deforest_01 = LongLatBBox(-61.15,-61.051,-21.8,-21.701)
 area_chaco_deforest_02 = LongLatBBox(-62.28,-62.15,-21.8,-21.7)
 area_chaco_deforest_03 = LongLatBBox(-62.30,-62.11,-21.84,-21.65)
+
+area_jair_01 = LongLatBBox(-63.42803671537233,-63.34916140311282,-30.42050193711671,-30.339391209687783)
+days_jair_01 = ["2021-01-01", "2022-12-31"]
+area_jair_02 = LongLatBBox(-63.02341479977622,-62.940716720052535,-29.87713676641895,-29.800596170529722)
+days_jair_02 = ["2021-01-01", "2022-12-31"]
+area_jair_03 = LongLatBBox(-64.81480548517165,-64.68969201848563,-32.50300566653878,-32.43805824301178)
+days_jair_03 = ["2020-03-01", "2021-06-01"]
+area_jair_04 = LongLatBBox(-65.61138831755882,-65.53888985559803,-31.99645556588706,-31.89978610318753)
+days_jair_04 = ["2022-06-01", "2023-06-01"]
+area_jair_05 = LongLatBBox(-65.50593631546242,-65.4372014448094,-30.76559346086256,-30.701248739138492)
+days_jair_05 = ["2022-06-01", "2023-06-01"]
+area_jair_06 = LongLatBBox(-63.59617395125423,-63.564204443287736,-30.096382481502957,-30.049102375439773)
+days_jair_06 = ["2022-06-01", "2023-06-01"]
+area_jair_07 = LongLatBBox(-65.10065502652814,-65.04464262987477,-31.704045563926357,-31.66390090800001)
+days_jair_07 = ["2019-01-01", "2020-01-01"]
+all_areas_jair = [area_jair_01, area_jair_02, area_jair_03, area_jair_04, area_jair_05, area_jair_06, area_jair_07]
+all_areas_jair_lbls = ["jair_01", "jair_02", "jair_03", "jair_04", "jair_05", "jair_06", "jair_07"]
+all_days_jair = [days_jair_01, days_jair_02, days_jair_03, days_jair_04, days_jair_05, days_jair_06, days_jair_07]
+
 all_areas = [area_cordoba_city, area_los_medanitos, area_calmayo, area_las_penas, area_villa_alpina, area_peru_deforest_01, area_chaco_deforest_01, area_chaco_deforest_02]
 all_area_lbls = ["cordoba", "los_medanitos", "calmayo", "las_penas", "villa_alpina", "peru_deforest_01", "chaco_deforest_01", "chaco_deforest_02", "chaco_deforest_03"]
 
@@ -188,8 +201,8 @@ days_chaco_deforest_01 = ["2018-01-24", "2019-12-24"]
 days_chaco_deforest_02 = ["2019-01-24", "2019-12-24"]
 days_chaco_deforest_03 = ["2019-01-24", "2019-12-24"]
 
-areas = [area_chaco_deforest_01]
-area_lbls = ["chaco_deforest_01"]
+areas = [area_jair_01]
+area_lbls = ["jair_01"]
 period_of_interest = days_chaco_deforest_01
 min_interval = 90
 preprocessor.nb_max_step_search = 1
@@ -199,5 +212,6 @@ preprocessor.max_cloud_coverage = 25.0
 dates_of_interest = days_chaco_deforest_01
 #test_analyse_period(areas, area_lbls, dates_of_interest)
 
-dates_of_interest = days_chaco_deforest_01
-test_dynamic_world(areas, area_lbls, dates_of_interest)
+dates_of_interest = days_jair_01
+#test_cva(all_areas_jair, all_areas_jair_lbls, all_days_jair)
+test_cva([area_jair_01], ["jair_01"], [days_jair_01])

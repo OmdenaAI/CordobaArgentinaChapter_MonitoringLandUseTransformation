@@ -186,14 +186,12 @@ class CordobaPredictor:
         print(f"optimal threshold {best_threshold} for Lk {best_Lk}")
         return best_threshold
 
-    def predict_CVA(self, images: List[CordobaImage], lbl_bands: List[str], dw_classes: List[CordobaImage], target_class: str) -> numpy.array:
+    def predict_CVA(self, images: List[CordobaImage], lbl_bands: List[str], target_class: str) -> numpy.array:
         """
         Detect change using two images of the same area at two different times
         using Change Vector Analysis.
         images: the two satellite images
         lbl_bands: bands in satellite image to use for detection
-        dw_classes: the two dynamic world classification images ot check against
-        when calculating the optimal magnitude threshold
         target_class: the class in dynamic world classes for which we do the
         analysis
         Return a boolean numpy array, the mask of pixels which were
@@ -202,13 +200,12 @@ class CordobaPredictor:
         """
         
         # Get the masks for the target class at T1 and T2
-        target_T1 = dw_classes[0].to_dynamic_world_mask(target_class)
-        target_T2 = dw_classes[1].to_dynamic_world_mask(target_class)
+        target_T1 = images[0].to_dynamic_world_mask(target_class)
+        target_T2 = images[1].to_dynamic_world_mask(target_class)
 
         # Get the mask of difference between the target class at T1 and T2
         mask_delta_target = (target_T1 & numpy.logical_not(target_T2))
         #mask_delta_target = (target_T2 == target_T1)
-        Image.fromarray((mask_delta_target*255.0).astype(numpy.uint8)).save("/tmp/mask_delta_trees_T2.png")
 
         # Get the bands data of satellite images at T1 and T2
         bands_T1 = images[0].get_bands_as_vectors(lbl_bands)

@@ -117,7 +117,7 @@ class CordobaPredictor:
 
         # Get the number of pixels which have changed according to the threshold
         # and not according to the a-priori mask
-        Ak2 = (detected_change & numpy.invert(delta_mask)).sum()
+        Ak2 = (detected_change & numpy.logical_not(delta_mask)).sum()
 
         # Get the number of pixels which have changed according to the a-priori
         # mask
@@ -146,7 +146,8 @@ class CordobaPredictor:
         # Get the minimum and maximum magnitude
         magnitude_min = numpy.min(magnitude)
         magnitude_max = numpy.max(magnitude)
-        
+        #return 0.5*(magnitude_min+magnitude_max)
+
         # Initialise the search range with minimum and maximum magnitude
         search_range = [magnitude_min, magnitude_max]
 
@@ -159,6 +160,7 @@ class CordobaPredictor:
         has_converged = False
         while (iteration < max_iteration) and (has_converged == False):
             iteration += 1
+            print(f"search range {search_range}")
             
             # Create a list of candidate thresholds
             search_step = (search_range[1] - search_range[0]) / float(nb_step)
@@ -186,7 +188,7 @@ class CordobaPredictor:
         print(f"optimal threshold {best_threshold} for Lk {best_Lk}")
         return best_threshold
 
-    def predict_CVA(self, images: List[CordobaImage], lbl_bands: List[str], target_class: str) -> numpy.array:
+    def predict_CVA(self, images: List[CordobaImage], lbl_bands: List[str], target_class: str, threshold_mask=0.0) -> numpy.array:
         """
         Detect change using two images of the same area at two different times
         using Change Vector Analysis.
@@ -194,18 +196,19 @@ class CordobaPredictor:
         lbl_bands: bands in satellite image to use for detection
         target_class: the class in dynamic world classes for which we do the
         analysis
+        threshold_mask: minimum probabilities (level of confidence) needed to
+        assume a pixel is really in the class DW tells us it is
         Return a boolean numpy array, the mask of pixels which were
         classified as target_class in the first image and as something else
         in the second image.
         """
         
         # Get the masks for the target class at T1 and T2
-        target_T1 = images[0].to_dynamic_world_mask(target_class)
-        target_T2 = images[1].to_dynamic_world_mask(target_class)
+        target_T1 = images[0].to_dynamic_world_mask(target_class, threshold_mask)
+        target_T2 = images[1].to_dynamic_world_mask(target_class, 0.0)
 
         # Get the mask of difference between the target class at T1 and T2
         mask_delta_target = (target_T1 & numpy.logical_not(target_T2))
-        #mask_delta_target = (target_T2 == target_T1)
 
         # Get the bands data of satellite images at T1 and T2
         bands_T1 = images[0].get_bands_as_vectors(lbl_bands)
@@ -216,8 +219,7 @@ class CordobaPredictor:
 
         # Get the magnitude of change in bands using euclidean distance
         magnitude = numpy.linalg.norm(delta_bands, axis=2)
-
-        Image.fromarray((magnitude/magnitude.max()*255.0).astype(numpy.uint8)).save("/tmp/magnitude_trees.png")
+        #Image.fromarray((magnitude/magnitude.max()*255.0).astype(numpy.uint8)).save("/tmp/magnitude_trees.png")
 
         # Get the optimal threshold value
         threshold_change = \

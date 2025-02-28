@@ -55,7 +55,7 @@ for i_area, area in enumerate(areas):
     images = preprocessor.get_satellite_data(days[i_area], area)
 
     # Threhsold confidence for the "trees" mask
-    threshold_mask = 0.33
+    threshold_mask = 0.5
 
     # For each image
     for i_image in range(len(images)):

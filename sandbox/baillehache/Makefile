@@ -4,6 +4,9 @@ run:
 predictor_dw:
 	python predictor_dw.py
 
+predictor_cva:
+	python predictor_cva.py
+
 edit:
 	geany Makefile *.py static/*js static/*css templates/*html README.md
 

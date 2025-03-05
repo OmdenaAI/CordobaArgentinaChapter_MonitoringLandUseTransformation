@@ -9,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 from app.core.config import settings
 
+# **New Import - pre-processing functions**:
+from preprocessing.data_pre_processor import retrieve_gee_data, apply_pca_kmeans  # Import pre-processing functions
+
 import logging
 
 # Configure logging
@@ -113,22 +116,24 @@ async def health_check() -> Dict[str, str]:
 @app.post("/process")
 async def process_change_detection(request: ChangeDetectionRequest) -> Dict[str, str]:
     """
-    Submit a change detection request for processing
-    Returns a task ID that can be used to check the status of the task.
-    """
+        Submit a change detection request for processing.
+        Returns a task ID that can be used to check the status of the task.
+        """
     try:
-        logging.info(f"Processing image")
+        logging.info(f"Processing change detection task")
+
         # Convert request to dictionary for Celery task
         task_data = request.model_dump()
 
-        # Submit task to Celery
+        # **New - Submit task to Celery with pre-processing**:
+        # Instead of calling the pre-processing functions directly, call a service (Flask app or similar)
         task = celery_app.send_task("tasks.process_task", args=[task_data])
 
         logging.info(f"Task submitted with ID: {task.id}")
         return {"task_id": task.id, "status": "submitted"}
 
     except Exception as e:
-        logging.error(f"Error processing image: {e}")
+        logging.error(f"Error processing change detection: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # **Modified - Task status logging and handling**:

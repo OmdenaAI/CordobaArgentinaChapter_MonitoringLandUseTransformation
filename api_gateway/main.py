@@ -21,14 +21,16 @@ class ChangeDetectionRequest(BaseModel):
     Pydantic model for change detection request.
 
     Constructor for an instance of CordobaImage.
-    date: the acquisition date and time (eg. "2022-12-01T00:01")
+    date: the acquisition date and time (eg. "2024-12-01")
+    days: the dates T1 and T2 e.g., ["2021-01-01", "2022-12-31"]
     area: the bounding longitudes and latitudes of the image
     resolution: the size in meter of one pixel
     width, height: dimensions of the image
     """
     gee_account: str = Field(..., description="Google Earth Engine account ID")
     gee_credentials_path: str = Field(..., description="Path to Google Earth Engine credentials file")
-    date: str = Field(..., description="Acquisition date and time (eg. '2022-12-01T00:01')")
+    date: str = Field(..., description="Acquisition date and time (eg. '2024-12-01')")
+    days: List[str] = Field(..., description="The dates T1 and T2 (eg. ['2021-01-01', '2022-12-31'])")
     area: LongLatBBox = Field(..., description="Bounding longitudes and latitudes of the image")
     resolution: float = Field(..., description="Size in meter of one pixel")
     width: int = Field(..., description="Width of the image")
@@ -40,7 +42,7 @@ class ChangeDetectionRequest(BaseModel):
             "example": {
                 "gee_account": "cordoba-team",
                 "gee_credentials_path": "/path/to/credentials.json",
-                "date": "2022-12-01T00:01",
+                "date": "2024-12-01",
                 "area": {
                     "longitude_min": -122.5,
                     "latitude_min": 37.5,

@@ -1,10 +1,9 @@
 from celery import Celery
-from typing import Dict, Any
 
 # Import the CordobaDataPreprocessor class
 # Needs to be adjusted based on the actual implementation
-from sandbox.baillehache.cordobaDataPreprocessor import CordobaDataPreprocessor
-from sandbox.baillehache.cordobaDataPreprocessor import LongLatBBox, CordobaImage
+from preprocessing_service.data_processor import CordobaDataPreprocessor
+
 
 # Initialize Celery and set Redis as the broker
 celery_app = Celery(

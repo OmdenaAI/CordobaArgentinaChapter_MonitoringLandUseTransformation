@@ -24,12 +24,7 @@ class CordobaPredictor:
         image: the CordobaImage associated with the mask (for coordinate
         conversion)
         mask: the mask to be converted
-        
-        Get polylines out of the mask using `cv.findContours`.
-        Convert the pixel coordinates of the polyline into longitude/latitude
-        coordinates (`CordobaImage.area` gives you the LongLatBBox of the
-        image, i.e. coordinates of each corners, from there it's straightforward to make the conversion).
-        Create and return `ee.Geometry` objects from the converted polylines.
+        Create and return `ee.Geometry` objects from the contours in the mask.
         """
         # Find the contours in the mask
         contours, _ = cv2.findContours(

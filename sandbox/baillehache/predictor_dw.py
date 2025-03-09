@@ -37,9 +37,11 @@ areas = [area_jair_01, area_jair_02, area_jair_03, area_jair_04, area_jair_05, a
 area_lbls = ["jair_01", "jair_02", "jair_03", "jair_04", "jair_05", "jair_06", "jair_07"]
 days = [days_jair_01, days_jair_02, days_jair_03, days_jair_04, days_jair_05, days_jair_06, days_jair_07]
 
+"""
 areas = [area_jair_01]
 area_lbls = ["jair_01"]
 days = [days_jair_01]
+"""
 
 # Create a predictor
 predictor = CordobaPredictor()

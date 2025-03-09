@@ -157,7 +157,7 @@ def test_cva(areas, area_lbls, days):
                 print(f"save image to {path_deforest}")
                 img.save(path_deforest)
 
-
+"""
 # Areas of interest
 area_cordoba_city = LongLatBBox(-64.3, -64.2, -31.4, -31.3)
 area_los_medanitos = LongLatBBox(-65.7, -65.6, -31.6, -31.5)
@@ -215,3 +215,18 @@ dates_of_interest = days_chaco_deforest_01
 dates_of_interest = days_jair_01
 #test_cva(all_areas_jair, all_areas_jair_lbls, all_days_jair)
 test_cva([area_jair_01], ["jair_01"], [days_jair_01])
+"""
+
+roi=ee.Geometry.Polygon(
+        [[[-121.04086404798966, 36.97562343255799],
+          [-121.38144021986466, 36.93611720712966],
+          [-121.06283670423966, 36.544342687193584],
+          [-120.47506814955216, 36.38088239731507],
+          [-120.10153299330216, 36.50902912598594],
+          [-120.46957498548966, 36.486949964934816],
+          [-120.52999979017716, 36.96245696791018],
+          [-119.93124490736466, 37.14658010572364],
+          [-120.62887674330216, 37.51348410687124],
+          [-121.16171365736466, 37.16409233412239]]]);
+bb = LongLatBBox.from_ee_geometry(roi)
+print(f"{bb}")

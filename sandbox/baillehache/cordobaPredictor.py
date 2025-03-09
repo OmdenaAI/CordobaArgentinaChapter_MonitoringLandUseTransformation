@@ -4,13 +4,7 @@ from PIL import Image
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-
-import torch
-from torchvision import transforms as T
 import cv2
-# Expect a folder 'FCCDN' containing the weights and a subfolder 'networks'
-# containing the FCCDN network definition (cf sandbox/surajkarki66)
-from FCCDN.networks.FCCDN import FCCDN
 
 class CordobaPredictor:
     """
@@ -22,6 +16,49 @@ class CordobaPredictor:
         Constructor for an instance of CordobaPredictor
         """
         pass
+
+    def get_ee_geometry_from_mask(self, image: CordobaImage, mask: numpy.array) -> List[ee.Geometry]:
+        """
+        Convert a boolean mask into a list of ee.Geometry surrounding the 'True'
+        areas.
+        image: the CordobaImage associated with the mask (for coordinate
+        conversion)
+        mask: the mask to be converted
+        
+        Get polylines out of the mask using `cv.findContours`.
+        Convert the pixel coordinates of the polyline into longitude/latitude
+        coordinates (`CordobaImage.area` gives you the LongLatBBox of the
+        image, i.e. coordinates of each corners, from there it's straightforward to make the conversion).
+        Create and return `ee.Geometry` objects from the converted polylines.
+        """
+        # Find the contours in the mask
+        contours, _ = cv2.findContours(
+            mask.astype(numpy.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # Array of ee.Geometry to memorise the result
+        geometries = []
+        # Loop on the blobs in the mask
+        for contour in contours:
+            # Array of converted coordinates for the contour of the blob
+            coords = []
+            # Loop on the contour of the blob
+            for node in contour:
+                # Convert the coordinates from pixel to long/lat
+                long = \
+                    float(node[0][0]) / float(image.width) * \
+                    (image.area.long_to - image.area.long_from) + \
+                    image.area.long_from
+                lat = \
+                    float(node[0][1]) / float(image.height) * \
+                    (image.area.lat_to - image.area.lat_from) + \
+                    image.area.lat_from
+                # Add the converted coordinates
+                coords += [[long, lat]]
+            # If the contour has at least three nodes
+            if len(coords) > 2:
+                # Add the converted blob to the result
+                geometries += [ee.Geometry.Polygon([coords])]
+        # Return the result list of ee.Geometry for the blobs in the image
+        return geometries
 
     def predict_pca_kmean_clustering(self, images: List[CordobaImage]) -> numpy.array:
         """
@@ -54,54 +91,6 @@ class CordobaPredictor:
         clustered_image_result = \
             (clustered_image * (255.0 / clustered_image.max())).astype(numpy.uint8)
         return clustered_image_result
-
-    def predict_FCCDN(self, images: List[CordobaImage]) -> numpy.array:
-        """
-        Detect difference in vegetation using two images of the same area at
-        two times. Use FCCD neural network.
-        images: the two images
-        Return the predicted mask as a numpy array (white is changed area)
-        """
-
-        # Paths and model setup
-        pretrained_weights = "./FCCDN/FCCDN_test_LEVIR_CD.pth"
-
-        # Load model
-        model = FCCDN(num_band=3, use_se=True)
-        pretrained_dict = torch.load(pretrained_weights, map_location="cpu", weights_only=True)
-        module_model_state_dict = {}
-        for item, value in pretrained_dict['model_state_dict'].items():
-            if item[:7] == 'module.':
-                item = item[7:]
-            module_model_state_dict[item] = value
-        model.load_state_dict(module_model_state_dict, strict=True)
-        model.cpu()
-        model.eval()
-
-        # Normalization transform
-        mean_value = [0.37772245912313807, 0.4425350597897193, 0.4464795300397427]
-        std_value = [0.1762166286060892, 0.1917139949806914, 0.20443966020731438]
-        normalize = T.Normalize(mean=mean_value, std=std_value)
-
-        # Input images (needs to be 1024x1024 for FCCDN)
-        pre = images[0].to_rgb()
-        original_shape = pre.shape
-        pre = cv2.resize(pre, (1024, 1024)) 
-        post = images[1].to_rgb()
-        post = cv2.resize(post, (1024, 1024)) 
-        
-        # Normalize and convert to tensor
-        pre = normalize(torch.Tensor(pre.transpose(2, 0, 1) / 255))[None].cpu()
-        post = normalize(torch.Tensor(post.transpose(2, 0, 1) / 255))[None].cpu()
-
-        # Model prediction
-        pred = model([pre, post])
-
-        # Process outputs
-        out = torch.round(torch.sigmoid(pred[0])).cpu().detach().numpy()
-        out = (out[0, 0] * 255).astype(numpy.uint8)
-        out = cv2.resize(out, [original_shape[1], original_shape[0]])
-        return out
 
     def compute_Lk(self, magnitude: numpy.array, threshold: float, delta_mask: numpy.array) -> float:
         """

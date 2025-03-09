@@ -14,7 +14,12 @@ gee_credentials_path = "../../../earthengine_api_key.json"
 preprocessor = \
     CordobaDataPreprocessor(gee_account, gee_credentials_path, online=True)
 
-area_jair_01 = LongLatBBox(-63.42803671537233,-63.34916140311282,-30.42050193711671,-30.339391209687783)
+roi=ee.Geometry.Polygon(
+        [[[-63.42803671537233, -30.42050193711671],
+          [-63.42803671537233, -30.339391209687783],
+          [-63.34916140311282, -30.339391209687783],
+          [-63.34916140311282, -30.339391209687783]]]);
+area_jair_01 = LongLatBBox.from_ee_geometry(roi)
 days_jair_01 = ["2021-01-01", "2022-12-31"]
 area_jair_02 = LongLatBBox(-63.02341479977622,-62.940716720052535,-29.87713676641895,-29.800596170529722)
 days_jair_02 = ["2021-01-01", "2022-12-31"]
@@ -32,11 +37,9 @@ areas = [area_jair_01, area_jair_02, area_jair_03, area_jair_04, area_jair_05, a
 area_lbls = ["jair_01", "jair_02", "jair_03", "jair_04", "jair_05", "jair_06", "jair_07"]
 days = [days_jair_01, days_jair_02, days_jair_03, days_jair_04, days_jair_05, days_jair_06, days_jair_07]
 
-"""
 areas = [area_jair_01]
 area_lbls = ["jair_01"]
 days = [days_jair_01]
-"""
 
 # Create a predictor
 predictor = CordobaPredictor()
@@ -86,3 +89,8 @@ for i_area, area in enumerate(areas):
             path_deforest = f"./Data/{images[i_image].source}_{area_lbls[i_area]}_{images[i_image].date}_deforest_dw.png"
             print(f"save image to {path_deforest}")
             img.save(path_deforest)
+            
+            # Convert to ee.Geometry
+            rois = predictor.get_ee_geometry_from_mask(images[i_image], deforest_mask)
+            for roi in rois:
+                print(f"{roi.getInfo()}")

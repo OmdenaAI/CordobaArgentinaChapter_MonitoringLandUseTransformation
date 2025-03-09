@@ -926,10 +926,12 @@ class CordobaDataPreprocessor:
 
             # If we also have dynamic world data
             if ee_image_dw != None:
-                for band_idx in range(len(dynamic_world_bands)):
-                    image.classes[dynamic_world_bands[band_idx]] = \
-                        data_dw[:, :][dynamic_world_bands[band_idx]]
-                
+                try:
+                    for band_idx in range(len(dynamic_world_bands)):
+                        image.classes[dynamic_world_bands[band_idx]] = \
+                            data_dw[:, :][dynamic_world_bands[band_idx]]
+                except:
+                    pass
 
         # Return the result image
         return image

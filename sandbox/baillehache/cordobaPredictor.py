@@ -141,6 +141,8 @@ class CordobaPredictor:
         Return the optimal threshold
         For details about the algorithm, refer to:
         https://www.researchgate.net/publication/228907009_Land-UseLand-Cover_Change_Detection_Using_Improved_Change-Vector_Analysis
+        TODO:
+        The DFPS algorithm is not intended to be used on a single image but rather on a dataset of change/no-change pixels, with change pixels identified in a prior step and no-change pixels limited to a small surrounding window around change pixels.
         """
 
         # Get the minimum and maximum magnitude

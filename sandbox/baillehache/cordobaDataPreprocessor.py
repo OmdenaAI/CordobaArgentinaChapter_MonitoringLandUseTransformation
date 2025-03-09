@@ -677,14 +677,11 @@ class CordobaDataPreprocessor:
             image.bands[band_name] = numpy.zeros((height, width))
         return image
 
-
-    def get_satellite_data(self, dates: List[str], area: LongLatBBox, 
-                        preprocessed_indices: List[str] = None) -> List[CordobaImage]:
+    def get_satellite_data(self, dates: List[str], area: LongLatBBox) -> List[CordobaImage]:
         """
         Get the satellite images for an area and a list of dates
         dates: list of dates (eg. ["2024-11-01", "2024-12-01"])
         area: the area of interest
-        preprocessed_indices: list of additional processed bands to include
         Return the available images fully covering the area of interest for
         each date.
         """
@@ -701,11 +698,12 @@ class CordobaDataPreprocessor:
 
         # Else, we are in online normal mode
         else:
+
             # Reference image for registration (initially none)
             ee_image_ref = None
 
             # Loop on the requested dates
-            for _, date in enumerate(dates):
+            for i_date, date in enumerate(dates):
 
                 # Get the ee image for the date
                 ee_image, actual_source, ee_image_dw = \
@@ -723,16 +721,6 @@ class CordobaDataPreprocessor:
                     if self.flag_verbose:
                         print("remote preprocessing...")
                         sys.stdout.flush()
-
-                    # Ensure the necessary bands are present
-                    required_bands = ["red", "green", "blue", "nir", "swir"]
-                    available_bands = ee_image.bandNames().getInfo()
-                    missing_bands = [band for band in required_bands if band not in available_bands]
-                    if missing_bands:
-                        print(f"Missing bands in ee.Image: {missing_bands}")
-                        continue
-
-                    # Apply preprocessing steps
                     if self.data_source != CordobaDataSource.DYNAMIC_WORLD:
                         ee_image = self.preprocess_gaussian_blur(ee_image)
                         ee_image = self.preprocess_ndvi(ee_image)
@@ -744,11 +732,12 @@ class CordobaDataPreprocessor:
                     if self.flag_verbose:
                         print("converting to CordobaImage...")
                         sys.stdout.flush()
-                    try:
-                        image = self.cvt_ee_image_to_cordoba_image(
-                            date, ee_image, area, ee_image_dw, preprocessed_indices)
-                    except ValueError as e:
-                        print(f"Error converting ee.Image to CordobaImage: {e}")
+                    image = \
+                        self.cvt_ee_image_to_cordoba_image(
+                            date, ee_image, area, ee_image_dw)
+
+                    # If we couldn't get the image, use a dummy one instead
+                    if image is None:
                         image = self.get_dummy_image(date, area)
 
                     # Add the image to the list of result images
@@ -760,6 +749,7 @@ class CordobaDataPreprocessor:
                     image = self.get_dummy_image(date, area)
                     image.source = actual_source
                     images.append(image)
+
 
         # Return the images
         return images

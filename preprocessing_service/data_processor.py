@@ -36,8 +36,23 @@ class CordobaDataSource(Enum):
 
 class LongLatBBox:
     """
-    Longitude-latitude boudning box
+    Longitude-latitude bounding box
     """
+    @classmethod
+    def from_ee_geometry(cls, roi: ee.Geometry):
+        """
+        Get the bounding (min/max) longitudes and latitudes of the ROI.
+        Create and return an instance of LongLatBBox with the default constructor
+        """
+        bounds = ee.Array(ee.List(roi.bounds().coordinates()).get(0))
+        min_coords = bounds.reduce(ee.Reducer.min(), [0]).project([1]).toList()
+        max_coords = bounds.reduce(ee.Reducer.max(), [0]).project([1]).toList()
+        long_from = float(min_coords.get(0).getInfo())
+        lat_from = float(min_coords.get(1).getInfo())
+        long_to = float(max_coords.get(0).getInfo())
+        lat_to = float(max_coords.get(1).getInfo())
+        return LongLatBBox(long_from, long_to, lat_from, lat_to)
+
     def __init__(self,
         long_from: float, long_to: float,
         lat_from: float, lat_to: float):
@@ -691,10 +706,10 @@ class CordobaDataPreprocessor:
         # If in offline mode
         if self.online is False:
 
-          # Create a dummy image instead of retrieving data from GEE
-          for date in dates:
-              image = self.get_dummy_image(date, area)
-              images.append(image)
+            # Create a dummy image instead of retrieving data from GEE
+            for date in dates:
+                image = self.get_dummy_image(date, area)
+                images.append(image)
 
         # Else, we are in online normal mode
         else:
@@ -926,10 +941,12 @@ class CordobaDataPreprocessor:
 
             # If we also have dynamic world data
             if ee_image_dw != None:
-                for band_idx in range(len(dynamic_world_bands)):
-                    image.classes[dynamic_world_bands[band_idx]] = \
-                        data_dw[:, :][dynamic_world_bands[band_idx]]
-                
+                try:
+                    for band_idx in range(len(dynamic_world_bands)):
+                        image.classes[dynamic_world_bands[band_idx]] = \
+                            data_dw[:, :][dynamic_world_bands[band_idx]]
+                except:
+                    pass
 
         # Return the result image
         return image

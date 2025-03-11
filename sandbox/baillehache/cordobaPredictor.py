@@ -55,6 +55,26 @@ class CordobaPredictor:
         # Return the result list of ee.Geometry for the blobs in the image
         return geometries
 
+    def get_contours_from_mask(self, image: CordobaImage, mask: numpy.array, gamma=1.0) -> numpy.array:
+        """
+        Convert a boolean mask into an image of the contours surrounding the
+        'True' areas.
+        image: the CordobaImage associated with the mask (for coordinate
+        conversion)
+        mask: the mask to be converted
+        gamma: gamma correction
+        Create and return the image as a numpy array.
+        """
+        # Find the contours in the mask
+        contours, _ = cv2.findContours(
+            mask.astype(numpy.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # Get the RGB image
+        rgb = image.to_rgb(gamma)
+        # Draw the contours on the RGB image
+        cv2.drawContours(rgb, contours, -1, (255,255,255), 1)
+        # Return the annotated image
+        return rgb
+
     def predict_pca_kmean_clustering(self, images: List[CordobaImage]) -> numpy.array:
         """
         Detect difference in vegetation using two images of the same area at

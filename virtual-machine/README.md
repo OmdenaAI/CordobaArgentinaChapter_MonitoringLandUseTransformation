@@ -1,4 +1,4 @@
-<h1 style="color: #7A8B56; font-size: 24px; font-weight: bold; text-align: center; padding: 10px; border: 2px solid #7A8B56;">Argentina Land Use - Services</h1>
+<h1 style="color: #af55c4; font-size: 24px; font-weight: bold; text-align: center; padding: 10px; border: 2px solid #af55c4;">Argentina Land Use - Services</h1>
 
 ## Overview
 
@@ -7,12 +7,12 @@
   init: {
     'theme': 'base',
     'themeVariables': {
-      'primaryColor': '#7A8B56',
+      'primaryColor': '#2c39b1',
       'primaryTextColor': '#FFFFFF',
-      'primaryBorderColor': '#5C6B3B',
-      'lineColor': '#9A9F68',
-      'secondaryColor': '#6E4B3A',
-      'tertiaryColor': '#D1C6B1'
+      'primaryBorderColor': '#af55c4',
+      'lineColor': '#af55c4',
+      'secondaryColor': '#49bd81',
+      'tertiaryColor': '#FFFFFF'
     }
   }
 }%%
@@ -51,7 +51,7 @@ graph TB;
     end
 
     subgraph MiniO[MiniO Instance]
-      QueueBucket["🧺 Queue Bucket"]
+      Bucket["🧺 S3 Bucket"]
     end
 
     CeleryWorkers --->|Stores Results In| RedisBackend
@@ -91,13 +91,55 @@ virtual-machine
 |
 +---fast-api
 |   +---app
-|   |   __init__.py
-|   |   celery_config.py
+|   |   +---alembic
+|   |   |   +---versions
+|   |   |   |
+|   |   |   alembic.ini
+|   |   |   env.py
+|   |   |   script.py.mako
+|   |   |   
+|   |   +---api
+|   |   |   +---v1
+|   |   |   |   +---endpoints
+|   |   |   |   |   __init__.py
+|   |   |   |   |   auth.py
+|   |   |   |   |   places.py
+|   |   |   |   |   processing.py
+|   |   |   |   |
+|   |   |   |   __init__.py
+|   |   |   |   api.py
+|   |   |   __init__.py
+|   |   |   deps.py
+|   |   |   
+|   |   +---celery
+|   |   |   celery_config.py
+|   |   |
+|   |   +---core
+|   |   |   config.py
+|   |   |   security.py
+|   |   |
+|   |   +---db
+|   |   |   session.py
+|   |   |
+|   |   +---models
+|   |   |   __init__.py
+|   |   |   models.py
+|   |   |
+|   |   +---schemas
+|   |   |   schemas.py
+|   |   |   
+|   |   +---services
+|   |   |   __init__.py
+|   |   |   place_service.py
+|   |   |   processing_service.py
+|   |   |   user_service.py
+|   |   |   
 |   |   main.py
 |   |   requirements.txt
 |   |
 |   .env
 |   Dockerfile
+|   entrypoint.sh
 |   README.md
 |
 +---postgres
@@ -155,7 +197,7 @@ virtual-machine
 
 - **Docker 27.5.1** (build 9f9e405) and **Docker Compose 2.32.4** were installed on the Virtual Machine. Please note, earlier Docker versions are not available on Ubuntu 24.04. For installation details, refer to [this guide](docker/README.md).
   
-- **Resource Allocation**: The machine has been provisioned with resources similar to a **t4g.micro** AWS EC2 instance.
+- **Resource Allocation**: The machine has been provisioned with the following resources:1-
 
 <table align="center">
   <thead>
@@ -171,7 +213,7 @@ virtual-machine
       <td>Ubuntu 24.04 64-bits</td>
       <td>1024Mb</td>
       <td>2</td>
-      <td>10Gb</td>
+      <td>25Gb</td>
     </tr>
   </tbody>
 </table>
@@ -185,8 +227,48 @@ docker network create argland-network
 
 ### Deployment
 - **Redis**: Deployed using a pre-built image from Docker Hub.
-- **MiniO**: Simulating AWS S3 instance. Deployed from pre-built image from Docker Hub.
+- **MiniO**: Simulating AWS S3 instance. Deployed from pre-built image from Docker Hub. Compose executes an entrypoint script.
 - **Flower**: Also deployed from pre-built image pulled from Docker Hub, with custom settings provided via docker-compose.
-- **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile` and environment variables found in their respective directories. 
+- **Postgres**: Uses Docker Hub's official image postgis/postgis:16-3.4, which includes Postgres 16 and PostGis extension 3.4. The deployment includes an entrypoint script that takes care of creating the database if it does not exist, enabling PostGis extension and restoring a backup if one is provided in the backup path.
+- **Celery & FastAPI**: Both services use custom Docker images, which are built using the `Dockerfile`. 
+  - **Celery**: Has an alternative entrypoint code (not implemented in the deployment) for implementing tasks priorities as experimental feature. 
+  - **FastAPI**: Executes an entrypoint script to run database migrations every time the application starts.
 - The `docker-compose.yaml` and `.env` files link everything together and ensure smooth orchestration.
 
+## Services Details
+
+Services have their individual README files listed bellow, with more details about them.
+
+<table align="center">
+  <thead>
+      <th>Service</th>
+      <th>Link to README</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Celery</td>
+      <td><a href="celery/README.md" target="_blank">README.md</a></td>
+    </tr>
+    <tr>
+      <td>FastAPI</td>
+      <td><a href="fast-api/README.md" target="_blank">README.md</a></td>
+    </tr>
+    <tr>
+    <tr>
+      <td>Flower</td>
+      <td><a href="flower/README.md" target="_blank">README.md</a></td>
+    </tr>
+    <tr>
+      <td>MiniO</td>
+      <td><a href="mini-o/README.md" target="_blank">README.md</a></td>
+    </tr>
+    <tr>
+      <td>Postgres</td>
+      <td><a href="postgres/README.md" target="_blank">README.md</a></td>
+    </tr>
+    <tr>
+      <td>Redis</td>
+      <td><a href="redis/README.md" target="_blank">README.md</a></td>
+    </tr>
+  </tbody>
+</table>

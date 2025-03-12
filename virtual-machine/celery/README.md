@@ -20,10 +20,10 @@ The application has 2 modules:
 
 ## Dockerfile
 
-The Celery instance requires connection to the Redis instance, which acts as broker; so in this case, we need a custom Dockerfile to instruct Docker on how to build the application. The setup is very simple, includes files transfer into the container, installing the requirements from the requirements file and the command to launch the Celery workers. 
+The Celery instance requires connection to the Redis instance, which acts as broker; so in this case, we need a custom Dockerfile to instruct Docker on how to build the application. The setup is very simple, includes files transfer into the container, installing the requirements from the requirements file and the command to launch the Celery worker(s). 
+
+There's an alternative Dockerfile, saved with extension .txt, and an entrypoint script file, which implements priorities and deploys 2 workers to handle those. This feature is experimental and not implemented in the current code.
 
 ## Deployment using Docker Compose
 
 Deployed with the main [Docker Compose](virtual-machine\docker-compose.yaml) file.
-
-## Useful commands

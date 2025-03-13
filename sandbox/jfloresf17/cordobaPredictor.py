@@ -1,27 +1,17 @@
 from cordobaDataPreprocessor import *
 import numpy
+import cv2
 import pyproj
 import rasterio
-import geopandas as gpd
 
-from rasterio.features import shapes, rasterize
-from shapely.geometry import shape, Polygon
-
-# from PIL import Image
+from skimage.morphology import remove_small_objects
+from typing import List, Dict
+from shapely.geometry import Polygon
+from rasterio.features import rasterize
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from typing import List, Tuple
 
-# import torch
-# from torchvision import transforms as T
-import cv2
-# Expect a folder 'FCCDN' containing the weights and a subfolder 'networks'
-# containing the FCCDN network definition (cf sandbox/surajkarki66)
-# from FCCDN.networks.FCCDN import FCCDN
-
-# List of bands name in the dynamic world dataset
-dynamic_world_bands = ["water", "trees", "grass", "flooded_vegetation", "crops","shrub_and_scrub", "built", "bare", "snow_and_ice"]
 
 class CordobaPredictor:
     """
@@ -33,6 +23,85 @@ class CordobaPredictor:
         Constructor for an instance of CordobaPredictor
         """
         pass
+
+    def get_ee_geometry_from_mask(self, image: CordobaImage, mask: numpy.array, aoi: ee.Geometry=None) -> List[ee.Geometry]:
+        """
+        Convert a boolean mask into a list of ee.Geometry surrounding the 'True'
+        areas. The contours will only include polygons inside the ROI.
+        
+        image: the CordobaImage associated with the mask (for coordinate
+        conversion)
+        mask: the mask to be converted
+        aoi: the area of interest (optional) to clip the result
+        Create and return `ee.Geometry` objects from the contours in the mask.
+        """
+        if aoi is not None:
+            # Get the shape of the mask
+            height, width = mask.shape
+            bbox = [image.area.long_from, image.area.lat_from, image.area.long_to, image.area.lat_to]
+
+            # Get the ROI polygon
+            roi_polygon = Polygon(aoi.getInfo()["coordinates"][0])
+            transform = rasterio.transform.from_bounds(*bbox, width, height)
+
+            roi_mask = rasterize(
+                        [roi_polygon],
+                        out_shape=(height, width),
+                        transform=transform,
+                        all_touched=True,
+                        fill=0,
+                        default_value=1,
+                        dtype=numpy.uint8
+                    )
+
+            clipped_mask = mask & roi_mask
+
+            contours, _ = cv2.findContours( 
+                clipped_mask.astype(numpy.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        else:
+            contours, _ = cv2.findContours(
+                mask.astype(numpy.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Loop through the contours to create geometries
+        geometries = []
+        for contour in contours:
+            coords = []
+            for node in contour:
+                # Convert the coordinates from pixel to longitude/latitude
+                lon = (float(node[0][0]) / float(image.width)) * (image.area.long_to - image.area.long_from) + image.area.long_from
+                lat = image.area.lat_to - (float(node[0][1]) / float(image.height)) * (image.area.lat_to - image.area.lat_from)
+                coords.append([lon, lat])
+
+            # If the contour has at least three nodes, check if it is within the ROI
+            if len(coords) > 2:
+                contour_geometry = ee.Geometry.Polygon([coords])
+                geometries.append(contour_geometry)
+
+                if aoi is None or roi_polygon.intersects(Polygon(coords)):
+                    geometries.append(contour_geometry)
+
+        # Return the list of geometries that are inside the ROI
+        return geometries
+    
+    def get_contours_from_mask(self, image: CordobaImage, mask: numpy.array, gamma=1.0) -> numpy.array:
+        """
+        Convert a boolean mask into an image of the contours surrounding the
+        'True' areas.
+        image: the CordobaImage associated with the mask (for coordinate
+        conversion)
+        mask: the mask to be converted
+        gamma: gamma correction
+        Create and return the image as a numpy array.
+        """
+        # Find the contours in the mask
+        contours, _ = cv2.findContours(
+            mask.astype(numpy.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        # Get the RGB image
+        rgb = image.to_rgb(gamma)
+        # Draw the contours on the RGB image
+        cv2.drawContours(rgb, contours, -1, (255,255,255), 1)
+        # Return the annotated image
+        return rgb
 
     def predict_pca_kmean_clustering(self, images: List[CordobaImage]) -> numpy.array:
         """
@@ -66,54 +135,6 @@ class CordobaPredictor:
             (clustered_image * (255.0 / clustered_image.max())).astype(numpy.uint8)
         return clustered_image_result
 
-    # def predict_FCCDN(self, images: List[CordobaImage]) -> numpy.array:
-    #     """
-    #     Detect difference in vegetation using two images of the same area at
-    #     two times. Use FCCD neural network.
-    #     images: the two images
-    #     Return the predicted mask as a numpy array (white is changed area)
-    #     """
-
-    #     # Paths and model setup
-    #     pretrained_weights = "./FCCDN/FCCDN_test_LEVIR_CD.pth"
-
-    #     # Load model
-    #     model = FCCDN(num_band=3, use_se=True)
-    #     pretrained_dict = torch.load(pretrained_weights, map_location="cpu", weights_only=True)
-    #     module_model_state_dict = {}
-    #     for item, value in pretrained_dict['model_state_dict'].items():
-    #         if item[:7] == 'module.':
-    #             item = item[7:]
-    #         module_model_state_dict[item] = value
-    #     model.load_state_dict(module_model_state_dict, strict=True)
-    #     model.cpu()
-    #     model.eval()
-
-    #     # Normalization transform
-    #     mean_value = [0.37772245912313807, 0.4425350597897193, 0.4464795300397427]
-    #     std_value = [0.1762166286060892, 0.1917139949806914, 0.20443966020731438]
-    #     normalize = T.Normalize(mean=mean_value, std=std_value)
-
-    #     # Input images (needs to be 1024x1024 for FCCDN)
-    #     pre = images[0].to_rgb()
-    #     original_shape = pre.shape
-    #     pre = cv2.resize(pre, (1024, 1024)) 
-    #     post = images[1].to_rgb()
-    #     post = cv2.resize(post, (1024, 1024)) 
-        
-    #     # Normalize and convert to tensor
-    #     pre = normalize(torch.Tensor(pre.transpose(2, 0, 1) / 255))[None].cpu()
-    #     post = normalize(torch.Tensor(post.transpose(2, 0, 1) / 255))[None].cpu()
-
-    #     # Model prediction
-    #     pred = model([pre, post])
-
-    #     # Process outputs
-    #     out = torch.round(torch.sigmoid(pred[0])).cpu().detach().numpy()
-    #     out = (out[0, 0] * 255).astype(numpy.uint8)
-    #     out = cv2.resize(out, [original_shape[1], original_shape[0]])
-    #     return out
-
     def compute_Lk(self, magnitude: numpy.array, threshold: float, delta_mask: numpy.array) -> float:
         """
         Compute the success rate Lk in get_optimal_cva_threshold()
@@ -134,8 +155,11 @@ class CordobaPredictor:
         # mask
         A = delta_mask.sum()
 
+
         # Compute and return the Lk value: ((Ak1 - Ak2) * 100) / A
         # Multiplied by 100 to have a percentage
+        if A == 0:
+            return 0  # Avoid division by zero
         Lk = ((Ak1 - Ak2) * 100.0) / A
         return Lk
 
@@ -152,6 +176,8 @@ class CordobaPredictor:
         Return the optimal threshold
         For details about the algorithm, refer to:
         https://www.researchgate.net/publication/228907009_Land-UseLand-Cover_Change_Detection_Using_Improved_Change-Vector_Analysis
+        TODO:
+        The DFPS algorithm is not intended to be used on a single image but rather on a dataset of change/no-change pixels, with change pixels identified in a prior step and no-change pixels limited to a small surrounding window around change pixels.
         """
 
         # Get the minimum and maximum magnitude
@@ -198,156 +224,74 @@ class CordobaPredictor:
         # Return the best threshold
         print(f"optimal threshold {best_threshold} for Lk {best_Lk}")
         return best_threshold
-    
-    def direction_cosine(self, delta_m: numpy.ndarray, delta_p: numpy.ndarray) -> float:
-    
-        """
-        Calculate the cosine of the angle between delta_m and delta_p.
-        Returns a value in [-1, 1].
-        The formula is:
 
-            cos(theta) = (delta_m . delta_p) / (||delta_m|| * ||delta_p||)
-
-        Args:
-        delta_m (numpy.ndarray): Delta vector for the model.
-        delta_p (numpy.ndarray): Delta vector for the probability.
-
-        Returns:
-        float: Cosine of the angle between delta_m and delta_p. Between -1 and 1.
-        """
-        norm_m = numpy.linalg.norm(delta_m)
-        norm_p = numpy.linalg.norm(delta_p)
-        
-        # To avoid division by zero
-        if norm_m < 1e-12 or norm_p < 1e-12:
-            return -9999 
-        
-        return numpy.dot(delta_m, delta_p) / (norm_m * norm_p)
-
-
-    def change_type_discrimination(self, prob_t1: numpy.array, prob_t2: numpy.array, 
-                                   changed_mask: numpy.array, n_classes: int) -> numpy.array:
-        """
-        Assign the change type (class transition) for pixels that changed.
-
-        Args:
-        prob_t1 (np.ndarray): Array (n, height, width) with probabilities at t1.
-        prob_t2 (np.ndarray): Array (n, height, width) with probabilities at t2.
-        changed_mask (np.ndarray): Array (height, width) boolean (True = changed).
-        n_classes (int): Number of classes (e.g., 9).
-
-        Returns:
-        np.ndarray: Change map (height, width), where each "changed" pixel has a code
-                    of transition a->b, and the unchanged pixels have 0.
-        """
-            
-        # 1) Pre calculate the transition vectors
-        # We use a dictionary with key=(a,b), value=delta_p_ab
-        transition_vectors = {}
-        
-        # Generate "pure" vectors for each class
-        # P_0 = (1, 0, 0, ...), P_1 = (0, 1, 0, ...) etc.
-        P = numpy.eye(n_classes)
-        
-        for a in range(n_classes):
-            for b in range(n_classes):
-                if a != b:
-                    delta_ab = P[b] - P[a]
-                    transition_vectors[(a, b)] = delta_ab
-                else:
-                    transition_vectors[(a, b)] = None  # No transition (a->a)
-        
-        # 2) Create an empty change map
-        height, width = prob_t1.shape[0], prob_t1.shape[1]
-        change_map = numpy.zeros((height, width), dtype=numpy.int32)
-        
-        # 3) For each changed pixel, calculate Delta M and find the transition with the highest cosine
-        for i in range(height):
-            for j in range(width):
-                if changed_mask[i, j]:
-                    # Extract the probability vectors at t1 and t2
-                    p1 = prob_t1[i, j, :]  # shape (n_classes, )
-                    p2 = prob_t2[i, j, :]  # shape (n_classes, )
-                    
-                    # Delta M
-                    delta_m = p2 - p1
-                    
-                    # Search for the transition (a->b) with the highest cosine
-                    best_cos = -9999
-                    best_transition = (0, 0)
-                    
-                    for (a, b), delta_ab in transition_vectors.items():
-                        if delta_ab is None:
-                            continue
-                        cos_val = self.direction_cosine(delta_m, delta_ab)
-                        if cos_val > best_cos:
-                            best_cos = cos_val
-                            best_transition = (a, b)
-                    
-                    # Code the transition a->b as a number, e.g. a * 100 + b
-                    a, b = best_transition
-                    transition_code = a * 100 + b
-                    
-                    change_map[i, j] = transition_code
-                else:
-                    # Unchanged pixel
-                    change_map[i, j] = 0 
-        
-        return change_map
-
-
-    def predict_CVA(self, images: List[CordobaImage]) -> numpy.array:
+    def predict_CVA(self, images: List[CordobaImage], target_class: str, 
+                    threshold_change: Dict[str, float], threshold_mask=0.0) -> numpy.array:
         """
         Detect change using two images of the same area at two different times
-        using Change Vector Analysis.
-        images: the two satellite images
-        
-        Return a boolean numpy array, the mask of pixels which were
-        classified as target_class in the first image and as something else
-        in the second image.
+        using Change Vector Analysis (CVA).
+
+        images: List of two CordobaImage objects (T1 and T2).
+        target_class: The target class for classification in Dynamic World.
+        threshold_change: Dictionary with band names as keys and threshold changes as values.
+        threshold_mask: Minimum probability required to assume a pixel belongs to target_class.
+
+        Returns:
+            Boolean numpy array (change mask), identifying pixels that changed.
         """
         
-        # Get the masks for the target class at T1 and T2
-        target_T1 = images[0].to_dynamic_world_mask()
-        target_T2 = images[1].to_dynamic_world_mask()
+        # Obtain initial change mask from Dynamic World
+        mask_delta_target = self.predict_dynamic_world(images, target_class, threshold_mask)
 
-        # Get the mask of difference between the target class at T1 and T2
-        mask_delta_target = (target_T1 != target_T2).astype(numpy.uint8)
+        tree_T1 = list(images[0].classes.values())[1]
+        tree_T2 = list(images[1].classes.values())[1]
 
-        # Get the bands data of satellite images at T1 and T2
-        bands_T1 = images[0].get_bands_as_vectors()
-        bands_T2 = images[1].get_bands_as_vectors()
+        # Calculate band differences (delta)
+        delta_bands = tree_T2 - tree_T1  # Shape: (num_bands, height, width)
 
-        # Get the delta of bands data between T1 and T2
-        delta_bands = bands_T2 - bands_T1
+        # Compute Euclidean magnitude of change
+        magnitude = numpy.linalg.norm(delta_bands[None], axis=0)  # Shape: (height, width)
 
-        # Get the magnitude of change in bands using euclidean distance
-        magnitude = numpy.linalg.norm(delta_bands, axis=2)
-        #Image.fromarray((magnitude/magnitude.max()*255.0).astype(numpy.uint8)).save("/tmp/magnitude_trees.png")
+        # Determine optimal threshold for change detection
+        optimal_threshold_change = self.get_optimal_cva_threshold(magnitude, mask_delta_target)
 
-        # Get the optimal threshold value
-        threshold_change = \
-            self.get_optimal_cva_threshold(magnitude, mask_delta_target)
-        
-        change_mask_magnitude = (magnitude >= threshold_change)
+        # Create initial change mask based on magnitude threshold
+        change_mask_magnitude = (magnitude >= optimal_threshold_change)
 
-        change_map = self.change_type_discrimination(bands_T1, bands_T2, change_mask_magnitude, 9)
+        num_votes = len(threshold_change) // 2
+        bands = []
+        for band, threshold in threshold_change.items():
+            bands_T1 = images[0].get_bands_as_vectors([band])
+            bands_T2 = images[1].get_bands_as_vectors([band])
 
-        forest_change = ((change_map >= 100) & (change_map <= 199)).astype(numpy.uint8) 
+            diff_bands = bands_T2 - bands_T1
+            change_mask_band = (diff_bands <= threshold)
+            change_mask_band = numpy.squeeze(change_mask_band, axis=-1)
+            bands.append(change_mask_band)
 
-        return forest_change
+        ## Add the change mask to diff_bands
+        stacked_bands = numpy.stack(bands, axis=0)
+        stacked_diff_bands = numpy.concatenate((change_mask_magnitude[None], stacked_bands), axis=0)
 
-        # # Create the change mask according to the magnitude of bands change
-        # # and the optimal threshold
-        # change_mask_magnitude = (magnitude >= threshold_change)
-        # return change_mask_magnitude
+        ## Apply majority voting
+        change_mask = (numpy.sum(stacked_diff_bands, axis=0) >= num_votes).astype(numpy.uint8)
+
+        # Erode and dilate operations
+        kernel = numpy.ones((3, 3), numpy.uint8)
+        dilated_mask = cv2.dilate(change_mask, kernel, iterations=1)
+        eroded_mask = cv2.erode(dilated_mask.astype(numpy.uint8), kernel, iterations=1)
+
+
+        # Apply remove small objects using skimage
+        clean_change_mask = remove_small_objects(eroded_mask.astype(bool), min_size=16, connectivity=1)
+
+        return clean_change_mask
 
         # Create the final change mask by discriminating between classes
         # changes based on magnitude
         # TODO
 
-    def predict_dynamic_world(self, images: List[CordobaImage], target_class: str, 
-                              threshold_mask=0.0) -> numpy.array:
+    def predict_dynamic_world(self, images: List[CordobaImage], target_class: str, threshold_mask=0.0) -> numpy.array:
         """
         Detect change using two images of the same area at two different times
         using dynamic world classification.
@@ -363,68 +307,8 @@ class CordobaPredictor:
         
         # Get the masks for the target class at T1 and T2
         target_T1 = images[0].to_dynamic_world_mask(target_class, threshold_mask)
-        target_T2 = images[1].to_dynamic_world_mask(target_class, 0.0)
+        target_T2 = images[1].to_dynamic_world_mask(target_class, threshold_mask)
 
         # Get the mask of areas containing the target class at T1 but not at T2
         mask_delta_target = (target_T1 & numpy.logical_not(target_T2))
         return mask_delta_target
-
-
-    def create_area_mask(self, shape: Tuple[int, int], area_of_interest: ee.Geometry.Polygon) -> numpy.ndarray:
-        """
-        Create a binary mask from the area of interest coordinates.
-        shape: the shape of the mask (height, width)
-        area_of_interest: the area of interest as an ee.Geometry.Polygon
-        resolution: the resolution of the mask in meters
-        Return the binary mask
-        """
-        # Convert the coordinates of the area of interest to UTM
-        coords = area_of_interest.coordinates().getInfo()[0]
-        lat_from, lon_from, lat_to, lon_to = coords[0][1], coords[0][0], coords[2][1], coords[2][0]
-        utm_code = query_utm_crs_info(datum_name='WGS 84', area_of_interest=AreaOfInterest(lon_from, lat_from, lon_to, lat_to))
-        utm_zone = utm_code[0].code
-        
-        # Convert the coordinates to UTM
-        utm_transformer = pyproj.Transformer.from_crs('epsg:4326', f"epsg:{utm_zone}", always_xy=True)
-        utm_coords = [utm_transformer.transform(lon, lat) for lon, lat in coords]
-
-        # Convert to shapely polygon
-        polygon = Polygon(utm_coords)
-
-        # Create a transformation of coordinates
-        x_min, y_min, x_max, y_max = polygon.bounds
-        transform = rasterio.transform.from_bounds(x_min, y_min, x_max, y_max, shape[1], shape[0])
-
-        # Rasterize the polygon
-        mask = rasterize([polygon], out_shape=shape, transform=transform, all_touched=True, fill=0, 
-                                           default_value=1, dtype=numpy.uint8)
-
-        return mask, utm_zone
-
-    def convert_mask_to_polygon(self, mask: numpy.ndarray, area_of_interest: LongLatBBox) -> List[List[Tuple[float, float]]]:
-        """
-        Convert a mask to a list of polygons.
-        mask: the mask to convert
-        area_of_interest: the area of interest as a LongLatBBox
-        resolution: the resolution of the mask in meters
-        Return the list of polygons
-        """
-        # Create a binary mask from the area of interest coordinates
-        area_mask, crs = self.create_area_mask(mask.shape, area_of_interest.to_ee_polygon())
-        
-        # Apply the area mask to the input mask
-        mask = mask * area_mask
-        
-        # Vectorize the result
-        transform = rasterio.transform.from_bounds(area_of_interest.long_from, area_of_interest.lat_from, area_of_interest.long_to, area_of_interest.lat_to, mask.shape[1], mask.shape[0])
-        shapes_gen = shapes(mask, transform=transform)
-        vectors = [(shape(s), v) for s, v in shapes_gen if v == 1]
-
-        # Convert shapes to polygons
-        polygons = [s for s, _ in vectors]
-
-        # Convert as a GeoJSON format
-        gdf = gpd.GeoDataFrame(geometry=polygons, crs=f"EPSG:{crs}")
-
-        return gdf
-

@@ -135,8 +135,8 @@ coordinates = [
 
 # AREA 4
 T1_date = '2022-06-01'
-T2_date = '2023-06-01'
-range_days = 15
+T2_date = '2023-07-01'
+range_days = 30
 coordinates = [
           [
             [

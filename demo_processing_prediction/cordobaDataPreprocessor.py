@@ -1,3 +1,5 @@
+"""This is a copy of Pascal's file from his sandbox"""
+
 from typing import List
 from enum import Enum
 import numpy

@@ -1,3 +1,5 @@
+"""This is a copy of Pascal's file from his sandbox"""
+
 from cordobaDataPreprocessor import *
 import numpy
 from PIL import Image

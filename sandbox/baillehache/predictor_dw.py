@@ -13,19 +13,28 @@ gee_credentials_path = "../../../earthengine_api_key.json"
 # Create a preprocessor instance
 preprocessor = \
     CordobaDataPreprocessor(gee_account, gee_credentials_path, online=True)
-
-roi=ee.Geometry.Polygon(
+roi_01=ee.Geometry.Polygon(
         [[[-63.42803671537233, -30.42050193711671],
           [-63.42803671537233, -30.339391209687783],
           [-63.34916140311282, -30.339391209687783],
-          [-63.34916140311282, -30.339391209687783]]]);
-area_jair_01 = LongLatBBox.from_ee_geometry(roi)
+          [-63.34916140311282, -30.42050193711671]]])
+area_jair_01 = LongLatBBox.from_ee_geometry(roi_01)
 days_jair_01 = ["2021-01-01", "2022-12-31"]
 area_jair_02 = LongLatBBox(-63.02341479977622,-62.940716720052535,-29.87713676641895,-29.800596170529722)
 days_jair_02 = ["2021-01-01", "2022-12-31"]
 area_jair_03 = LongLatBBox(-64.81480548517165,-64.68969201848563,-32.50300566653878,-32.43805824301178)
 days_jair_03 = ["2020-03-01", "2021-06-01"]
 area_jair_04 = LongLatBBox(-65.61138831755882,-65.53888985559803,-31.99645556588706,-31.89978610318753)
+roi_04=ee.Geometry.Polygon(
+        [[[-65.61138831755882, -31.99645556588706],
+          [-65.61138831755882, -31.89978610318753],
+          [-65.53888985559803, -31.89978610318753],
+          [-65.53888985559803, -31.99645556588706]]])
+clip_roi_04=ee.Geometry.Polygon(
+        [[[-65.61138831755882, -31.99645556588706],
+          [-65.61138831755882, -31.95978610318753],
+          [-65.53888985559803, -31.95978610318753],
+          [-65.53888985559803, -31.99645556588706]]])
 days_jair_04 = ["2022-06-01", "2023-06-01"]
 area_jair_05 = LongLatBBox(-65.50593631546242,-65.4372014448094,-30.76559346086256,-30.701248739138492)
 days_jair_05 = ["2022-06-01", "2023-06-01"]
@@ -37,11 +46,9 @@ areas = [area_jair_01, area_jair_02, area_jair_03, area_jair_04, area_jair_05, a
 area_lbls = ["jair_01", "jair_02", "jair_03", "jair_04", "jair_05", "jair_06", "jair_07"]
 days = [days_jair_01, days_jair_02, days_jair_03, days_jair_04, days_jair_05, days_jair_06, days_jair_07]
 
-"""
-areas = [area_jair_01]
-area_lbls = ["jair_01"]
-days = [days_jair_01]
-"""
+areas = [area_jair_04]
+area_lbls = ["jair_04"]
+days = [days_jair_04]
 
 # Create a predictor
 predictor = CordobaPredictor()
@@ -93,6 +100,9 @@ for i_area, area in enumerate(areas):
             img.save(path_deforest)
             
             # Convert to ee.Geometry
-            rois = predictor.get_ee_geometry_from_mask(images[i_image], deforest_mask)
+            #rois = predictor.get_ee_geometry_from_mask(images[i_image], deforest_mask, roi_04)
+            rois = predictor.get_ee_geometry_from_mask(images[i_image], deforest_mask, clip_roi_04)
+            #rois = predictor.get_ee_geometry_from_mask(images[i_image], deforest_mask)
+            print(f"nb geometries: {len(rois)}")
             for roi in rois:
                 print(f"{roi.getInfo()}")

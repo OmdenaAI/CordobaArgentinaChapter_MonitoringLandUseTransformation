@@ -17,13 +17,14 @@ class CordobaPredictor:
         """
         pass
 
-    def get_ee_geometry_from_mask(self, image: CordobaImage, mask: numpy.array) -> List[ee.Geometry]:
+    def get_ee_geometry_from_mask(self, image: CordobaImage, mask: numpy.array, aoi: ee.Geometry=None) -> List[ee.Geometry]:
         """
         Convert a boolean mask into a list of ee.Geometry surrounding the 'True'
         areas.
         image: the CordobaImage associated with the mask (for coordinate
         conversion)
         mask: the mask to be converted
+        aoi: the area of interest (optional) to clip the result
         Create and return `ee.Geometry` objects from the contours in the mask.
         """
         # Find the contours in the mask
@@ -50,8 +51,23 @@ class CordobaPredictor:
                 coords += [[long, lat]]
             # If the contour has at least three nodes
             if len(coords) > 2:
-                # Add the converted blob to the result
-                geometries += [ee.Geometry.Polygon([coords])]
+                # Convert the blob into an ee.Geometry
+                blob_geometry = ee.Geometry.Polygon([coords])
+                # If no area of interest was provided
+                if aoi is None:
+                    # Add the converted blob to the result
+                    geometries += [blob_geometry]
+                # Else, an area of interest was provided
+                else:
+                    # If the blob intersects the area of interest
+                    if aoi.intersects(ee.Geometry.Polygon([coords])):
+                        # Add the intersection to the result
+                        # (the intersection can returns empty "MultiPoint",
+                        # filter them out to have clean results)
+                        clipped_geometry = \
+                            aoi.intersection(ee.Geometry.Polygon([coords]))
+                        if clipped_geometry.type().getInfo() == "Polygon":
+                            geometries += [clipped_geometry]
         # Return the result list of ee.Geometry for the blobs in the image
         return geometries
 
